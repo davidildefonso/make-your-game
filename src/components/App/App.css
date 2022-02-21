@@ -1,6 +1,6 @@
 .hello {
   color: red;
-  background: url('../assets/img/icon.png');
+  background: url('../../assets/img/icon.png');
 }
 
 .container{
