@@ -1,15 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
+import Canvas from '../Canvas';
 import './App.css';
 
 const App = () => {
-  const [counter, setCounter] = useState(0);
 
   return (
-    <div className="container hello">
-      hello webpack {counter} clicks
-      <button onClick={() => setCounter(counter + 1)}>
-        press
-      </button>
+    <div>
+		<Canvas type="main" width={700} height={500}  />
     </div>
   );
 };

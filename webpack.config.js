@@ -10,7 +10,7 @@ module.exports = {
 				test: /\.tsx?$/,
 				loader:  'babel-loader',
 				options: {
-					presets: ['@babel/preset-env', '@babel/preset-react'],
+					presets: ['@babel/preset-env', '@babel/preset-react', "@babel/preset-typescript"],
 				},
 				exclude: /node_modules/,
 			},
