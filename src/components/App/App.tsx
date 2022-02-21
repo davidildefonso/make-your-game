@@ -6,7 +6,7 @@ const App = () => {
 
   return (
     <div>
-		<Canvas type="main" width={700} height={500}  />
+		<Canvas type="main" width={700} height={400}  />
     </div>
   );
 };
