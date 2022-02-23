@@ -1,14 +1,25 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import  './canvas.css';
 import Icon from '../../assets/img/laughing.png';
+
+
 
 const Canvas = (props :{type : string, width: number, height: number}) => {
 
 	const canvasRef = useRef(null);
 	const dimension = 20;
 
+	const [wheeling, setWheeling] = useState(false);
+	const [isKeyPressed, setIsKeyPressed] = useState(false);
+	const [keyCode, setKeyCode] = useState(null);
+	const [zoomingIn, setZoomingIn] = useState(false);
+	const [zoomingOut, setZoomingOut] = useState(false);
+	const [deltaY, setDeltaY] = useState(null);
+	const [wheelEvent, setWheelEvent] = useState(null);
+
 	useEffect(() => {		
-		const canvas = canvasRef.current;
+		const canvas = canvasRef.current;	
+	
 		const context = canvas.getContext("2d");
 		context.fillStyle  = '#000';
 		console.log(props.type);
@@ -40,17 +51,67 @@ const Canvas = (props :{type : string, width: number, height: number}) => {
 
 		myImage.onload = () => {
 			context.drawImage(myImage ,100, 100, myImage.width, myImage.height);
+		};	
+
+
+	}, []);	
+
+	const handleWheel = (e: { preventDefault: () => void; deltaY: number; }) => {		
+		if(keyCode === 17 && isKeyPressed){
+			e.preventDefault();		
+			setWheeling(true);	
+			setDeltaY(e.deltaY);
+			setWheelEvent(e);
+			
+		}else{
+			setWheeling(false);	
+			setDeltaY(null);	
+		}			
+	};	
+
+
+	const handleKeyDown = (e: { keyCode: number; }) => {
+		setIsKeyPressed(true);
+		setKeyCode(e.keyCode);		
+	};
+
+	const handleKeyUp = () => {
+		setIsKeyPressed(false);
+		setKeyCode(null);
+		canvasRef.current.removeEventListener("wheel", handleWheel);
+		
+	};
+
+	useEffect(() => {
+		canvasRef.current.addEventListener("wheel", handleWheel, {passive: false});
+		
+		if(wheeling && isKeyPressed){
+			setZoomingIn(deltaY < 0 ? true : false);
+			setZoomingOut(deltaY > 0 ? true : false);		
+		}
+
+		return () => {
+			
 		};
 
-		
-
-
-	}, []);
+	}, [wheeling, isKeyPressed, wheelEvent]);
 	
+	
+	useEffect(() => {
+		if(zoomingIn){
+			console.log("zoom in");
+		}else if(zoomingOut){
+			console.log("zoom out");
+		}
 
+		return () => {
+			
+		};
+
+	}, [zoomingIn, zoomingOut]);
 
 	return (	
-		<canvas  ref = {canvasRef}  ></canvas>	
+		<canvas  onKeyDown={handleKeyDown}  onKeyUp={handleKeyUp}    ref = {canvasRef} tabIndex={0} ></canvas>	
 	);
 };
 
