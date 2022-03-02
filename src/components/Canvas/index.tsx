@@ -21,59 +21,43 @@ const Canvas = (props :{type : string, width: number, height: number}) => {
 	const [canvasPosition, setCanvasPosition] = useState(null);
 	const [dragOk, setDragOk] = useState(false);
 	const [isDragging, setIsDragging] = useState(false);
+	const [images, setImages] = useState([]);
 	const [myImage, setMyImage] = useState(null);
-	const [imageLoaded, setImageLoaded] = useState(false);
 	const [imageData, setImageData] = useState(null);
+
 
 	useEffect(() => {		
 		const canvas = canvasRef.current;	
-
 		const BB=canvas.getBoundingClientRect();
 		setCanvasPosition({...canvasPosition, offsetX: BB.left, offsetY: BB.top});
-		
-
 		const context = canvas.getContext("2d");
-		context.fillStyle  = '#000';
-		console.log(props.type);
 		context.canvas.width = props.width;
 		context.canvas.height = props.height;
-		const canvasWidth = context.canvas.width ;
-		const canvasHeight = context.canvas.height ;
-		context.fillRect(0, 0, canvasWidth, canvasHeight);
-
 		
-
 		const img = new Image();
 		img.src = Icon1;
-		img.onload = () => {
-			
+		img.onload = () => {			
 			setMyImage(img);
-			setImageLoaded(true);
 			draw(context);
-			setImageData({...imageData, scale: 1, xPosInCanvas: 100, yPosInCanvas: 100});
-		};
-			
-	
+			setImageData({...imageData, xPosInCanvas: 100, yPosInCanvas: 100});
+		};	
 	}, []);	
-
 
 	const clearCanvas = (context: CanvasRenderingContext2D) => {
 		context.fillStyle  = '#000';
 		context.fillRect(0, 0, context.canvas.width, context.canvas.height);
 	};
 
-	const draw = (ctx: CanvasRenderingContext2D) => {
+	const draw = (ctx: CanvasRenderingContext2D) => {		
 		clearCanvas(ctx);
-		drawBg(ctx,  1,  dimension , '#cccccc'); 
-		drawImageInCanvas(ctx);
+		drawBg(ctx,  canvasScale,  dimension , '#cccccc'); 
+		drawImageInCanvas(ctx);	
 	};
 
 	const drawImageInCanvas = (ctx: CanvasRenderingContext2D) => {	
-		console.log(myImage)
 		if(imageData){
-			ctx.drawImage(myImage , imageData.xPosInCanvas / imageData.scale, imageData.yPosInCanvas / imageData.scale , myImage.width / imageData.scale, myImage.height / imageData.scale);	
-		}
-		
+			ctx.drawImage(myImage , imageData.xPosInCanvas / canvasScale, imageData.yPosInCanvas / canvasScale , myImage.width / canvasScale, myImage.height / canvasScale);	
+		}		
 	};
 
 	const drawBg = (ctx : CanvasRenderingContext2D, scale: number,  dimension: number , strokeStyle: string ) => {		
@@ -85,14 +69,13 @@ const Canvas = (props :{type : string, width: number, height: number}) => {
 		ctx.strokeStyle = strokeStyle;
 		let xPos, yPos;
 		for (let i = 0; i <  Math.floor(canvasWidth/ (dimension / scale)) ; ++i) {
-		//	if (i % dimension != 0) { continue; }
 			xPos = Math.floor(i * (dimension / scale));
 			ctx.beginPath();
 			ctx.moveTo(xPos, 0);
 			ctx.lineTo(xPos, canvasHeight);
 			ctx.stroke();
 
-			yPos =  Math.floor(i * (dimension / scale)); //Math.floor(i *  Math.floor(canvasHeight/ (dimension / scale )) );
+			yPos =  Math.floor(i * (dimension / scale)); 
 			ctx.beginPath();
 			ctx.moveTo(0, yPos);
 			ctx.lineTo(canvasWidth, yPos);
@@ -100,54 +83,53 @@ const Canvas = (props :{type : string, width: number, height: number}) => {
 		}
 	};
 
-	const handleWheel = (e: { preventDefault: () => void; deltaY: number; }) => {		
+	const handleWheel = (e: { preventDefault: () => void; deltaY: number; }) => {	
+		
 		if(keyCode === 17 && isKeyPressed){
 			e.preventDefault();		
 			setWheeling(true);	
 			setDeltaY(e.deltaY);
-			setWheelEvent(e);
-			
+			setWheelEvent(e);			
 		}else{
 			setWheeling(false);	
 			setDeltaY(null);	
 		}			
-	};	
+	};
 
 
 	const handleKeyDown = (e: { keyCode: number; }) => {
+
 		setIsKeyPressed(true);
-		setKeyCode(e.keyCode);	
-		console.log("key", e.keyCode);	
+		setKeyCode(e.keyCode);
 	};
 
 	const handleKeyUp = () => {
+
+		setWheeling(false);	
 		setIsKeyPressed(false);
 		setKeyCode(null);
-		canvasRef.current.removeEventListener("wheel", handleWheel);
-		
+		canvasRef.current.removeEventListener("wheel", handleWheel);	
 	};
 
 	const handleMouseDown = (e: { preventDefault: () => void; stopPropagation: () => void; clientX: number; clientY: number; }) => {
-	//	e.preventDefault();
+
 		e.stopPropagation();
 
 		const mx = e.clientX - canvasPosition.offsetX;
 		const my = e.clientY - canvasPosition.offsetY;
 
 		setDragOk(false);
-console.log(dragOk)
+
 		const myImage = new Image();
 		myImage.src = Icon1;
 		myImage.onload = () => {
-			console.log(myImage.width)
 			if(mx> myImage.x && mx < myImage.x+ myImage.width && my > myImage.y && my < myImage.y+ myImage.height){					
 				setDragOk(true);
 				setIsDragging(true);					
 			}
+			
 			setCanvasPosition({...canvasPosition, startX: mx, startY: my});
-		};
-
-	
+		};	
 	};
 
 	const handleMouseUp = (e: { stopPropagation: () => void; }) => {
@@ -163,29 +145,25 @@ console.log(dragOk)
 			const mx = e.clientX - canvasPosition.offsetX;
 			const my = e.clientY - canvasPosition.offsetY;
 
-			const dx = mx - canvasPosition.startX;
-			const dy = my - canvasPosition.startY;
+			const dx = (mx - canvasPosition.startX) * canvasScale;
+			const dy = (my - canvasPosition.startY) * canvasScale;
 
 			if(isDragging){
-				setImageData({...imageData, scale: 1, xPosInCanvas: imageData.xPosInCanvas + dx, yPosInCanvas: imageData.yPosInCanvas + dy});				
+				setImageData({...imageData, xPosInCanvas: imageData.xPosInCanvas + dx, yPosInCanvas: imageData.yPosInCanvas + dy});				
 			}
-
-			
-						
+		
 			canvasPosition.startX = mx;
 			canvasPosition.startY = my;
 
-  		}
+		}
 	};
 
 	useEffect(() => {
-		console.log(imageData)
 		if(imageData){
 			const canvas = canvasRef.current;	
 			const context = canvas.getContext("2d");
 			draw(context);
 		}
-	
 
 		return () => {
 		
@@ -194,15 +172,17 @@ console.log(dragOk)
 	
 
 	useEffect(() => {
-		canvasRef.current.addEventListener("wheel", handleWheel, {passive: false});
+
+		canvasRef.current.addEventListener("wheel", handleWheel, {passive: false});	
 		
-		if(wheeling && isKeyPressed){			
+		if(wheeling && isKeyPressed){	
+				
 			setZoomingIn(deltaY < 0 ? true : false);
 			setZoomingOut(deltaY > 0 ? true : false);		
 		}
 
 		return () => {
-			
+			//canvasRef.current.removeEventListener("wheel", handleWheel);
 		};
 
 	}, [wheeling, isKeyPressed, wheelEvent]);
@@ -210,13 +190,10 @@ console.log(dragOk)
 	
 	useEffect(() => {
 		if(zoomingIn){
-			console.log("zoom in");
-			setCanvasScale(canvasScale / 2);			
+			setCanvasScale(canvasScale / 1.25);			
 		}else if(zoomingOut){
-			console.log("zoom out");
-			setCanvasScale(canvasScale * 2);	
+			setCanvasScale(canvasScale * 1.25);	
 		}
-
 		return () => {
 			
 		};
@@ -225,9 +202,8 @@ console.log(dragOk)
 
 	useEffect(() => {
 		if(imageData){
-			setImageData({...imageData, scale: canvasScale, xPosInCanvas: 100, yPosInCanvas: 100});
-		}		
-
+			setImageData({...imageData, scale: canvasScale});
+		}	
 		return () => {
 			
 		}
