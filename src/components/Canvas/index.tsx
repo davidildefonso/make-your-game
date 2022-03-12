@@ -5,7 +5,7 @@ import Icon1 from '../../assets/img/painting.jpg';
 
 
 
-const Canvas = (props :{type : string, width: number, height: number}) => {
+const Canvas = (props :{type : string, width: number, height: number, gameObjects, lastChangedGameObject}) => {
 
 	const canvasRef = useRef(null);
 	const dimension = 20;
@@ -22,8 +22,8 @@ const Canvas = (props :{type : string, width: number, height: number}) => {
 	const [dragOk, setDragOk] = useState(false);
 	const [isDragging, setIsDragging] = useState(false);
 	const [images, setImages] = useState([]);
-	const [myImage, setMyImage] = useState(null);
 	const [imageData, setImageData] = useState(null);
+	const [imageDragging, setImageDragging] = useState(null);
 
 
 	useEffect(() => {		
@@ -33,31 +33,97 @@ const Canvas = (props :{type : string, width: number, height: number}) => {
 		const context = canvas.getContext("2d");
 		context.canvas.width = props.width;
 		context.canvas.height = props.height;
-		
-		const img = new Image();
-		img.src = Icon1;
-		img.onload = () => {			
-			setMyImage(img);
-			draw(context);
-			setImageData({...imageData, xPosInCanvas: 100, yPosInCanvas: 100});
-		};	
+		clearCanvas(context);
+		drawBg(context,  canvasScale,  dimension , '#cccccc'); 	
 	}, []);	
+
+	useEffect(() => {
+		const {type, objId} =  props.lastChangedGameObject;
+		let obj;
+		switch (type) {
+			case 'OBJECT_NO_DAMAGE':
+				obj = props.gameObjects.noDamageObjects.find(o => o.objId === objId);
+				addImageToImages(type, objId, obj);
+				break;
+			case 'OBJECT_DAMAGE':
+				obj = props.gameObjects.damageObjects.find(o => o.objId === objId);
+				addImageToImages(type, objId, obj);
+				break;
+			case 'OBJECT_ASSET':
+				obj = props.gameObjects.assets.find(o => o.objId === objId);
+				addImageToImages(type, objId, obj);
+				break;
+			case 'PLAYER':
+				obj = props.gameObjects.players.find(o => o.objId === objId);
+				addImageToImages(type, objId, obj);
+				break;
+			default:
+				break;
+		}
+		
+		return () => {
+		
+		}
+	}, [props.gameObjects]);
+
+	const addImageToImages = (type, objId, obj) => {		
+		const img = new Image();
+		img.src = obj.src;
+		img.onload = () => {		
+			setImages([...images, { order: images.length + 1 , type, objId, obj, image: img, xPosInCanvas: Math.floor(Math.random() * 5) * 50, yPosInCanvas: Math.floor(Math.random() * 5) * 50}]);
+		};
+	};
+	
+	console.log('images in canvas: ',images)
+
+	useEffect(() => {
+		if(images){
+			const canvas = canvasRef.current;	
+			const context = canvas.getContext("2d");
+			drawImages(context);
+		}
+
+		return () => {
+		
+		}
+	}, [images]);
 
 	const clearCanvas = (context: CanvasRenderingContext2D) => {
 		context.fillStyle  = '#000';
 		context.fillRect(0, 0, context.canvas.width, context.canvas.height);
 	};
 
-	const draw = (ctx: CanvasRenderingContext2D) => {		
-		clearCanvas(ctx);
-		drawBg(ctx,  canvasScale,  dimension , '#cccccc'); 
-		drawImageInCanvas(ctx);	
+	const drawImages = (ctx: CanvasRenderingContext2D) => {
+		if(images && images.length > 0){
+			images.forEach(i => drawImageInCanvas(ctx, i) );
+		}
 	};
 
-	const drawImageInCanvas = (ctx: CanvasRenderingContext2D) => {	
-		if(imageData){
-			ctx.drawImage(myImage , imageData.xPosInCanvas / canvasScale, imageData.yPosInCanvas / canvasScale , myImage.width / canvasScale, myImage.height / canvasScale);	
-		}		
+	const drawImageInCanvas = (ctx: CanvasRenderingContext2D, img) => {	
+		
+		let imageX, imageY,imageWidth,imageHeight;
+		if(img.obj.otherImagesInSameSprite && img.obj.singleSprite){
+			imageX = img.obj.xPosOnSprite;
+			imageY = img.obj.yPosOnSprite;
+			imageWidth = img.obj.width,
+			imageHeight = img.obj.height
+		}else if(!img.obj.otherImagesInSameSprite && !img.obj.singleSprite){
+			imageX = img.obj.mainImageXPosOnSprite;
+			imageY = img.obj.mainImageYPosOnSprite;
+			imageWidth = img.obj.width,
+			imageHeight = img.obj.height
+		}
+		ctx.drawImage(
+			img.image,
+			imageX,
+			imageY,
+			imageWidth,
+			imageHeight,
+			img.xPosInCanvas / canvasScale,
+			img.yPosInCanvas / canvasScale,
+			imageWidth / canvasScale,
+			imageHeight/ canvasScale
+		);		
 	};
 
 	const drawBg = (ctx : CanvasRenderingContext2D, scale: number,  dimension: number , strokeStyle: string ) => {		
@@ -114,22 +180,26 @@ const Canvas = (props :{type : string, width: number, height: number}) => {
 	const handleMouseDown = (e: { preventDefault: () => void; stopPropagation: () => void; clientX: number; clientY: number; }) => {
 
 		e.stopPropagation();
-
+		setDragOk(false);
 		const mx = e.clientX - canvasPosition.offsetX;
 		const my = e.clientY - canvasPosition.offsetY;
 
-		setDragOk(false);
+		const imageSelected = findImageUnderPointer(mx,my);
+		console.log(imageSelected);
+		
 
-		const myImage = new Image();
-		myImage.src = Icon1;
-		myImage.onload = () => {
-			if(mx> myImage.x && mx < myImage.x+ myImage.width && my > myImage.y && my < myImage.y+ myImage.height){					
-				setDragOk(true);
-				setIsDragging(true);					
-			}
-			
-			setCanvasPosition({...canvasPosition, startX: mx, startY: my});
-		};	
+		setDragOk(true);
+		setIsDragging(true);	
+		setImageDragging({...imageSelected, startX: mx, startY: my });
+		// 	setCanvasPosition({...canvasPosition, startX: mx, startY: my});
+		// };	
+	};
+
+	const findImageUnderPointer = (x, y) => {
+		return images
+			.filter(img => x > img.xPosInCanvas && x < img.xPosInCanvas + img.obj.width && y > img.yPosInCanvas && y < img.yPosInCanvas + img.obj.height)
+			.sort((img1, img2) => img1.order - img2.order )[0];
+		
 	};
 
 	const handleMouseUp = (e: { stopPropagation: () => void; }) => {
@@ -138,6 +208,32 @@ const Canvas = (props :{type : string, width: number, height: number}) => {
 		setIsDragging(false);
 	};
 
+/**
+ * 
+ * DO NOT DELETE THIS FUNCTION IT HAS A COOL EFFECT!!!
+
+ */
+	// const handleMouseMove = (e: { stopPropagation: () => void; clientX: number; clientY: number; }) => {
+	// 	if (dragOk){
+	// 		e.stopPropagation();
+
+	// 		const mx = e.clientX - canvasPosition.offsetX;
+	// 		const my = e.clientY - canvasPosition.offsetY;
+
+	// 		const dx = (mx - imageDragging.startX) * canvasScale;
+	// 		const dy = (my - imageDragging.startY) * canvasScale;
+
+	// 		if(isDragging){
+	// 			setImages(images.map(img => img.order === imageDragging.order ? {...img, xPosInCanvas: img.xPosInCanvas + dx, yPosInCanvas: img.yPosInCanvas + dy } : img ));				
+	// 		}
+		
+	// 		imageDragging.startX = mx;
+	// 		imageDragging.startY = my;
+
+	// 	}
+	// };
+
+
 	const handleMouseMove = (e: { stopPropagation: () => void; clientX: number; clientY: number; }) => {
 		if (dragOk){
 			e.stopPropagation();
@@ -145,31 +241,18 @@ const Canvas = (props :{type : string, width: number, height: number}) => {
 			const mx = e.clientX - canvasPosition.offsetX;
 			const my = e.clientY - canvasPosition.offsetY;
 
-			const dx = (mx - canvasPosition.startX) * canvasScale;
-			const dy = (my - canvasPosition.startY) * canvasScale;
+			const dx = (mx - imageDragging.startX) * canvasScale;
+			const dy = (my - imageDragging.startY) * canvasScale;
 
 			if(isDragging){
-				setImageData({...imageData, xPosInCanvas: imageData.xPosInCanvas + dx, yPosInCanvas: imageData.yPosInCanvas + dy});				
+				setImages(images.map(img => img.order === imageDragging.order ? {...img, xPosInCanvas: img.xPosInCanvas + dx, yPosInCanvas: img.yPosInCanvas + dy } : img ));				
 			}
 		
-			canvasPosition.startX = mx;
-			canvasPosition.startY = my;
+			imageDragging.startX = mx;
+			imageDragging.startY = my;
 
 		}
 	};
-
-	useEffect(() => {
-		if(imageData){
-			const canvas = canvasRef.current;	
-			const context = canvas.getContext("2d");
-			draw(context);
-		}
-
-		return () => {
-		
-		}
-	}, [imageData]);
-	
 
 	useEffect(() => {
 
