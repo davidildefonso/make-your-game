@@ -80,6 +80,8 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 		if(images){
 			const canvas = canvasRef.current;	
 			const context = canvas.getContext("2d");
+			clearCanvas(context);
+			drawBg(context,  canvasScale,  dimension , '#cccccc'); 
 			drawImages(context);
 		}
 
