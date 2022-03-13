@@ -82,7 +82,7 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 			const context = canvas.getContext("2d");
 			clearCanvas(context);
 			drawBg(context,  canvasScale,  dimension , '#cccccc'); 
-			drawImages(context);
+			drawImages(context);		
 		}
 
 		return () => {
@@ -166,7 +166,6 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 
 
 	const handleKeyDown = (e: { keyCode: number; }) => {
-
 		setIsKeyPressed(true);
 		setKeyCode(e.keyCode);
 	};
@@ -186,15 +185,11 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 		const mx = e.clientX - canvasPosition.offsetX;
 		const my = e.clientY - canvasPosition.offsetY;
 
-		const imageSelected = findImageUnderPointer(mx,my);
-		console.log(imageSelected);
-		
+		const imageSelected = findImageUnderPointer(mx,my);		
 
 		setDragOk(true);
 		setIsDragging(true);	
 		setImageDragging({...imageSelected, startX: mx, startY: my });
-		// 	setCanvasPosition({...canvasPosition, startX: mx, startY: my});
-		// };	
 	};
 
 	const findImageUnderPointer = (x, y) => {
@@ -235,11 +230,24 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	// 	}
 	// };
 
+	const cursorOnImage = (img, x, y) => {
+		if( x > img.xPosInCanvas && x < img.xPosInCanvas + img.obj.width && y > img.yPosInCanvas && y < img.yPosInCanvas + img.obj.height){
+			return true;
+		}
+	};
+
+	const getDirection = (img, x, y) => {
+		if( x > img.xPosInCanvas &&  y < img.yPosInCanvas    &&  x < img.xPosInCanvas + img.obj.width     ) return 'UP';
+		if( x > img.xPosInCanvas &&  y > img.yPosInCanvas + img.obj.height   &&  x < img.xPosInCanvas + img.obj.width     ) return 'DOWN';
+		if( x < img.xPosInCanvas &&  y < img.yPosInCanvas + img.obj.height   &&  y > img.yPosInCanvas    ) return 'LEFT';
+		if( x > img.xPosInCanvas + img.obj.width   &&  y < img.yPosInCanvas + img.obj.height   &&  y > img.yPosInCanvas    ) return 'RIGHT';
+	};
+
 
 	const handleMouseMove = (e: { stopPropagation: () => void; clientX: number; clientY: number; }) => {
 		if (dragOk){
 			e.stopPropagation();
-
+			
 			const mx = e.clientX - canvasPosition.offsetX;
 			const my = e.clientY - canvasPosition.offsetY;
 
@@ -247,7 +255,66 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 			const dy = (my - imageDragging.startY) * canvasScale;
 
 			if(isDragging){
-				setImages(images.map(img => img.order === imageDragging.order ? {...img, xPosInCanvas: img.xPosInCanvas + dx, yPosInCanvas: img.yPosInCanvas + dy } : img ));				
+				if(isKeyPressed && keyCode === 17){
+					if(!cursorOnImage(imageDragging, mx, my)){
+						const direction = getDirection(imageDragging, mx, my);
+						let newImage;
+						let imageUnderPointer = findImageUnderPointer(mx, my);
+						if(imageUnderPointer){							
+								setImageDragging(imageUnderPointer);
+						}else{
+							switch (direction) {
+							case 'UP':
+								newImage =  {
+									...imageDragging, 
+									yPosInCanvas: imageDragging.yPosInCanvas - imageDragging.obj.height,
+									order: images.length + 1,
+									objId: images.filter(i => i.type === imageDragging.type).length + 1	
+								};							
+								setImages([...images, newImage]);
+								setImageDragging(newImage);
+							
+								break;
+							case 'DOWN':
+								newImage =  {
+									...imageDragging, 
+									yPosInCanvas: imageDragging.yPosInCanvas + imageDragging.obj.height,
+									order: images.length + 1,
+									objId: images.filter(i => i.type === imageDragging.type).length + 1	
+								};							
+								setImages([...images, newImage]);
+								setImageDragging(newImage);
+								break;
+							case 'LEFT':
+								newImage =  {
+									...imageDragging, 
+									xPosInCanvas: imageDragging.xPosInCanvas - imageDragging.obj.width,
+									order: images.length + 1,
+									objId: images.filter(i => i.type === imageDragging.type).length + 1	
+								};							
+								setImages([...images, newImage]);
+								setImageDragging(newImage);
+								break;
+							case 'RIGHT':
+								newImage =  {
+									...imageDragging, 
+									xPosInCanvas: imageDragging.xPosInCanvas + imageDragging.obj.width,
+									order: images.length + 1,
+									objId: images.filter(i => i.type === imageDragging.type).length + 1	
+								};							
+								setImages([...images, newImage]);
+								setImageDragging(newImage);
+								break;
+							default:
+								break;
+						}
+						}
+						
+					}					
+				}else{
+					setImages(images.map(img => img.order === imageDragging.order ? {...img, xPosInCanvas: img.xPosInCanvas + dx, yPosInCanvas: img.yPosInCanvas + dy } : img ));				
+
+				}
 			}
 		
 			imageDragging.startX = mx;
