@@ -5,7 +5,7 @@ import Icon1 from '../../assets/img/painting.jpg';
 
 
 
-const Canvas = (props :{type : string, width: number, height: number, gameObjects, lastChangedGameObject}) => {
+const Canvas = (props :{type : string, width: number, height: number, gameObjects, lastChangedGameObject, setGameObjects}) => {
 
 	const canvasRef = useRef(null);
 	const dimension = 20;
@@ -75,6 +75,7 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	};
 	
 	console.log('images in canvas: ',images)
+	console.log('gameobjects: ', props.gameObjects)
 
 	useEffect(() => {
 		if(images){

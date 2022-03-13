@@ -13,6 +13,7 @@ const App = () => {
 		damageObjects: []
 	});
 	const [lastChangedGameObject, setLastChangedGameObject] = useState({});
+	const [location, setLocation] = useState(null);
 
 	const createImage = (obj) => {
 		switch (obj.type) {
@@ -35,15 +36,33 @@ const App = () => {
 			default:
 				break;
 		}
-		//setGameObjects({...gameObjects, players: [...gameObjects.players, obj] });
 	};
 
-  return (
-    <div className='app-container'> 
-		<Images createImage ={createImage} />
-		<Canvas type="main" width={700} height={400} gameObjects={gameObjects} lastChangedGameObject={lastChangedGameObject} />
-    </div>
-  );
+	const startGamePreview = (e) => {
+		e.preventDefault();
+		window.history.pushState({}, "", 'play');
+		const navEvent = new PopStateEvent('popstate');
+		window.dispatchEvent(navEvent);
+		setLocation('/play');
+	};
+	
+	if (location === "/play") {
+		return <div>
+		play the game
+		{gameObjects.toString()}
+		</div>;
+	}
+
+	return (
+		<div className='app-container'> 
+			<div>
+				<button  onClick={startGamePreview} >PLAY</button>
+				<Images createImage ={createImage} />
+			</div>
+
+			<Canvas type="main" width={700} height={400} gameObjects={gameObjects}  setGameObjects={setGameObjects} lastChangedGameObject={lastChangedGameObject} />
+		</div>
+	);
 };
 
 export default App;
