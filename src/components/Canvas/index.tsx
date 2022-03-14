@@ -19,11 +19,11 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	const [canvasPosition, setCanvasPosition] = useState(null);
 	const [dragOk, setDragOk] = useState(false);
 	const [isDragging, setIsDragging] = useState(false);
-	//const [images, setImages] = useState([]);
 	const [imageData, setImageData] = useState(null);
 	const [imageDragging, setImageDragging] = useState(null);
 	const [mapMoving, setMapMoving] = useState(false);
-	const [moveMap, setMoveMap] = useState(false);
+	const [moveMap, setMoveMap] = useState(false); 
+	const [positionInMap, setPositionInMap] = useState(null);
 
 	useEffect(() => {		
 		const canvas = canvasRef.current;	
@@ -101,6 +101,7 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 
 	useEffect(() => {
 		if(map && map.objects && map.objects.length > 0){
+		
 			let imagesToDraw = findImagesVisibleInCanvas(map.objects);		
 			if(imagesToDraw && imagesToDraw.length > 0 ){
 				setMap({...map, drawObjects: imagesToDraw });			
@@ -173,15 +174,16 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	};
 
 	const findImageVisibleArea = (img) => {
+		
 		let x1, y1;
-		x1 = img.xPosInMap;
-		y1 = img.yPosInMap;
+		x1 = img.visibleArea ? img.visibleArea.x1 : img.xPosInMap;
+		y1 = img.visibleArea  ? img.visibleArea.y1 : img.yPosInMap;
 		let r1 = { x1, y1, x2:  x1 + img.obj.width , y2: y1 + img.obj.height };
 
 		x1 = map.canvasX;
 		y1 = map.canvasY;
 		let r2 = { x1, y1, x2: x1 + map.canvasWidth, y2: y1 + map.canvasHeight};
-
+		
 		let visibleArea =  getIntersectingRectangle(r1, r2);
 		
 		if(!visibleArea){
@@ -269,23 +271,27 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 		const my = e.clientY - canvasPosition.offsetY;
 
 		const imageSelected = findImageUnderPointer(mx,my);		
-
+		
 		if(imageSelected){
 			setDragOk(true);
 			setIsDragging(true);	
 			setImageDragging({...imageSelected, startX: mx, startY: my });
 		}else{
-			console.log('move map')
+			
 			setMoveMap(true);
 			setMapMoving(true);
+			setPositionInMap({ startX: mx, startY: my });
 		}
 	
 	};
 
 	const findImageUnderPointer = (x, y) => {
-		return map.drawObjects
-			.filter(img => x > img.visibleAreaInCanvas.x1 && x < img.visibleAreaInCanvas.x2  && y > img.visibleAreaInCanvas.y1 && y < img.visibleAreaInCanvas.y2)
-			.sort((img1, img2) => img2.order - img1.order )[0];
+		if(map && map.drawObjects){
+			return map.drawObjects
+				.filter(img => x > img.visibleAreaInCanvas.x1 && x < img.visibleAreaInCanvas.x2  && y > img.visibleAreaInCanvas.y1 && y < img.visibleAreaInCanvas.y2)
+				.sort((img1, img2) => img2.order - img1.order )[0];
+		}
+		return null;		
 		
 	};
 
@@ -475,15 +481,39 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 			imageDragging.startY = my;
 			
 
-		}else if(moveMap){ 
+		}else if(moveMap){ 	
 			e.stopPropagation();
 
+			const mx = e.clientX - canvasPosition.offsetX;
+			const my = e.clientY - canvasPosition.offsetY;
+
+			const dx = (mx - positionInMap.startX) * canvasScale;
+			const dy = (my - positionInMap.startY) * canvasScale;
+
+	
+
 			if(mapMoving){
-				console.log('moving map')
+			
+				
+				setMap({...map, canvasX: map.canvasX - dx, canvasY: map.canvasY - dy});
 			}
+
+			positionInMap.startX = mx;
+			positionInMap.startY = my;
 			
 		}
 	};
+
+
+	useEffect(() => {
+		if(map && map.canvasX && map.canvasY ){
+			setMap({...map, objects: map.objects.map(img => findImageVisibleArea(img)) });
+		}		
+		return () => {
+		
+		}
+	}, [map.canvasX, map.canvasY])
+	
 
 	useEffect(() => {
 
