@@ -60,7 +60,7 @@ const App = () => {
 				<Images createImage ={createImage} />
 			</div>
 
-			<Canvas type="main" width={700} height={400} gameObjects={gameObjects}  setGameObjects={setGameObjects} lastChangedGameObject={lastChangedGameObject} />
+			<Canvas type="main" width={640} height={360} gameObjects={gameObjects}  setGameObjects={setGameObjects} lastChangedGameObject={lastChangedGameObject} />
 		</div>
 	);
 };

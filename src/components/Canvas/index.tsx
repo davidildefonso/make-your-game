@@ -1,8 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import  './canvas.css';
-import Icon from '../../assets/img/laughing.png';
-import Icon1 from '../../assets/img/painting.jpg';
-
 
 
 const Canvas = (props :{type : string, width: number, height: number, gameObjects, lastChangedGameObject, setGameObjects}) => {
@@ -10,6 +7,7 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	const canvasRef = useRef(null);
 	const dimension = 20;
 
+	const [map, setMap] = useState({});
 	const [wheeling, setWheeling] = useState(false);
 	const [isKeyPressed, setIsKeyPressed] = useState(false);
 	const [keyCode, setKeyCode] = useState(null);
@@ -24,7 +22,9 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	const [images, setImages] = useState([]);
 	const [imageData, setImageData] = useState(null);
 	const [imageDragging, setImageDragging] = useState(null);
-
+	const [mapMoving, setMapMoving] = useState(false);
+	const [moveMap, setMoveMap] = useState(false);
+	const [newImage, setNewImage] = useState(null);
 
 	useEffect(() => {		
 		const canvas = canvasRef.current;	
@@ -34,7 +34,16 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 		context.canvas.width = props.width;
 		context.canvas.height = props.height;
 		clearCanvas(context);
-		drawBg(context,  canvasScale,  dimension , '#cccccc'); 	
+		drawBg(context,  canvasScale,  dimension , '#cccccc'); 
+		setMap({
+			width: 6400,
+			height: 3600,
+			canvasX: 2880,
+			canvasY: 1620,
+			canvasWidth: context.canvas.width,
+			canvasHeight: context.canvas.height,
+			objects: []
+		});	
 	}, []);	
 
 	useEffect(() => {
@@ -69,27 +78,108 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	const addImageToImages = (type, objId, obj) => {		
 		const img = new Image();
 		img.src = obj.src;
-		img.onload = () => {		
-			setImages([...images, { order: images.length + 1 , type, objId, obj, image: img, xPosInCanvas: Math.floor(Math.random() * 5) * 50, yPosInCanvas: Math.floor(Math.random() * 5) * 50}]);
+		img.onload = () => {
+			const xPosInCanvas = 	Math.floor(Math.random() * 5) * 50;
+			const yPosInCanvas = 	Math.floor(Math.random() * 5) * 50;
+			const newImage = { 
+				order: images.length + 1 ,
+				type,
+				objId,
+				obj,
+				image: img,
+				xPosInCanvas,
+				yPosInCanvas,
+				xPosInMap: xPosInCanvas + map.canvasX,
+				yPosInMap: yPosInCanvas + map.canvasY
+			};
+			setNewImage(newImage);
+			setImages([
+				...images, 
+				newImage
+			]);
 		};
 	};
-	
-	console.log('images in canvas: ',images)
-	console.log('gameobjects: ', props.gameObjects)
 
 	useEffect(() => {
-		if(images){
-			const canvas = canvasRef.current;	
-			const context = canvas.getContext("2d");
-			clearCanvas(context);
-			drawBg(context,  canvasScale,  dimension , '#cccccc'); 
-			drawImages(context);		
+		console.log(newImage)
+		if(newImage){
+			setMap({...map, objects: map.objects.concat(newImage)});
+			setNewImage(null);
+		}else{
+			console.log(images, map)
 		}
 
 		return () => {
 		
 		}
 	}, [images]);
+	
+
+	useEffect(() => {
+		if(map && map.objects && map.objects.length > 0){
+			let imagesToDraw = findImagesVisibleInCanvas(map.objects);
+			console.log(imagesToDraw)
+			if(imagesToDraw && imagesToDraw.length > 0 ){
+				const canvas = canvasRef.current;	
+				const context = canvas.getContext("2d");
+				clearCanvas(context);
+				drawBg(context,  canvasScale,  dimension , '#cccccc'); 
+				drawImages(context);		
+			}
+		}		
+
+		return () => {
+		
+		}
+	}, [map]);
+
+	const getIntersectingRectangle = (r1, r2) => {  
+		[r1, r2] = [r1, r2].map(r => {
+			return {
+			x: [r.x1, r.x2].sort((a,b) => a - b),
+			y: [r.y1, r.y2].sort((a,b) => a - b)
+			};
+		});
+
+		const noIntersect = r2.x[0] > r1.x[1] || r2.x[1] < r1.x[0] ||
+							r2.y[0] > r1.y[1] || r2.y[1] < r1.y[0];
+
+		return noIntersect ? false : {
+			x1: Math.max(r1.x[0], r2.x[0]), 
+			y1: Math.max(r1.y[0], r2.y[0]), 
+			x2: Math.min(r1.x[1], r2.x[1]),
+			y2: Math.min(r1.y[1], r2.y[1])
+		};
+	};
+
+	const findImageVisibleArea = (img) => {
+		let x1, y1;
+		x1 = img.xPosInMap;
+		y1 = img.yPosInMap;
+		let r1 = { x1, y1, x2:  x1 + img.obj.width , y2: y1 + img.obj.height };
+
+		x1 = map.canvasX;
+		y1 = map.canvasY;
+		let r2 = { x1, y1, x2: x1 + map.canvasWidth, y2: y1 + map.canvasHeight};
+
+		let visibleArea =  getIntersectingRectangle(r1, r2);
+		
+		if(!visibleArea){
+			return {...img, visible: false, visibleArea: null};
+		}
+
+		const visibleAreaInCanvas =  { 
+			x1: visibleArea.x1 - map.canvasX,
+			y1: visibleArea.y1 - map.canvasY,
+			x2: visibleArea.x2 - map.canvasX,
+			y2: visibleArea.y2 - map.canvasY,
+		};
+		return {...img, visible: true, visibleArea, visibleAreaInCanvas};
+	};
+
+	const findImagesVisibleInCanvas = (imagesList) => {
+		return imagesList.map(img => findImageVisibleArea(img)).filter(img => img.visible);
+	};
 
 	const clearCanvas = (context: CanvasRenderingContext2D) => {
 		context.fillStyle  = '#000';
@@ -183,14 +273,22 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 
 		e.stopPropagation();
 		setDragOk(false);
+		setMoveMap(false);
 		const mx = e.clientX - canvasPosition.offsetX;
 		const my = e.clientY - canvasPosition.offsetY;
 
 		const imageSelected = findImageUnderPointer(mx,my);		
 
-		setDragOk(true);
-		setIsDragging(true);	
-		setImageDragging({...imageSelected, startX: mx, startY: my });
+		if(imageSelected){
+			setDragOk(true);
+			setIsDragging(true);	
+			setImageDragging({...imageSelected, startX: mx, startY: my });
+		}else{
+			console.log('move map')
+			setMoveMap(true);
+			setMapMoving(true);
+		}
+	
 	};
 
 	const findImageUnderPointer = (x, y) => {
@@ -204,6 +302,8 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 		e.stopPropagation();
 		setDragOk(false);
 		setIsDragging(false);
+		setMoveMap(false);
+		setMapMoving(false);
 	};
 
 /**
@@ -255,12 +355,13 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 			const dx = (mx - imageDragging.startX) * canvasScale;
 			const dy = (my - imageDragging.startY) * canvasScale;
 
+
 			if(isDragging){
 				if(isKeyPressed && keyCode === 17){
 					if(!cursorOnImage(imageDragging, mx, my)){
 						const direction = getDirection(imageDragging, mx, my);
 						let newImage;
-						let imageUnderPointer = findImageUnderPointer(mx, my);
+						const imageUnderPointer = findImageUnderPointer(mx, my);
 						if(imageUnderPointer){							
 								setImageDragging(imageUnderPointer);
 						}else{
@@ -316,11 +417,20 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 					setImages(images.map(img => img.order === imageDragging.order ? {...img, xPosInCanvas: img.xPosInCanvas + dx, yPosInCanvas: img.yPosInCanvas + dy } : img ));				
 
 				}
+
 			}
-		
+
 			imageDragging.startX = mx;
 			imageDragging.startY = my;
+			
 
+		}else if(moveMap){ 
+			e.stopPropagation();
+
+			if(mapMoving){
+				console.log('moving map')
+			}
+			
 		}
 	};
 
