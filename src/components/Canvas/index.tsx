@@ -19,12 +19,11 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	const [canvasPosition, setCanvasPosition] = useState(null);
 	const [dragOk, setDragOk] = useState(false);
 	const [isDragging, setIsDragging] = useState(false);
-	const [images, setImages] = useState([]);
+	//const [images, setImages] = useState([]);
 	const [imageData, setImageData] = useState(null);
 	const [imageDragging, setImageDragging] = useState(null);
 	const [mapMoving, setMapMoving] = useState(false);
 	const [moveMap, setMoveMap] = useState(false);
-	const [newImage, setNewImage] = useState(null);
 
 	useEffect(() => {		
 		const canvas = canvasRef.current;	
@@ -52,19 +51,19 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 		switch (type) {
 			case 'OBJECT_NO_DAMAGE':
 				obj = props.gameObjects.noDamageObjects.find(o => o.objId === objId);
-				addImageToImages(type, objId, obj);
+				addImageToMap(type, objId, obj);
 				break;
 			case 'OBJECT_DAMAGE':
 				obj = props.gameObjects.damageObjects.find(o => o.objId === objId);
-				addImageToImages(type, objId, obj);
+				addImageToMap(type, objId, obj);
 				break;
 			case 'OBJECT_ASSET':
 				obj = props.gameObjects.assets.find(o => o.objId === objId);
-				addImageToImages(type, objId, obj);
+				addImageToMap(type, objId, obj);
 				break;
 			case 'PLAYER':
 				obj = props.gameObjects.players.find(o => o.objId === objId);
-				addImageToImages(type, objId, obj);
+				addImageToMap(type, objId, obj);
 				break;
 			default:
 				break;
@@ -75,14 +74,14 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 		}
 	}, [props.gameObjects]);
 
-	const addImageToImages = (type, objId, obj) => {		
+	const addImageToMap = (type, objId, obj) => {		
 		const img = new Image();
 		img.src = obj.src;
 		img.onload = () => {
 			const xPosInCanvas = 	Math.floor(Math.random() * 5) * 50;
 			const yPosInCanvas = 	Math.floor(Math.random() * 5) * 50;
-			const newImage = { 
-				order: images.length + 1 ,
+			let newImage = { 
+				order: map.objects.length + 1 ,
 				type,
 				objId,
 				obj,
@@ -92,46 +91,67 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 				xPosInMap: xPosInCanvas + map.canvasX,
 				yPosInMap: yPosInCanvas + map.canvasY
 			};
-			setNewImage(newImage);
-			setImages([
-				...images, 
-				newImage
-			]);
+
+			newImage = findImageVisibleArea(newImage);
+		
+			setMap({...map, objects: [...map.objects, newImage] });
 		};
 	};
-
-	useEffect(() => {
-		console.log(newImage)
-		if(newImage){
-			setMap({...map, objects: map.objects.concat(newImage)});
-			setNewImage(null);
-		}else{
-			console.log(images, map)
-		}
-
-		return () => {
-		
-		}
-	}, [images]);
 	
 
 	useEffect(() => {
 		if(map && map.objects && map.objects.length > 0){
-			let imagesToDraw = findImagesVisibleInCanvas(map.objects);
-			console.log(imagesToDraw)
+			let imagesToDraw = findImagesVisibleInCanvas(map.objects);		
 			if(imagesToDraw && imagesToDraw.length > 0 ){
-				const canvas = canvasRef.current;	
-				const context = canvas.getContext("2d");
-				clearCanvas(context);
-				drawBg(context,  canvasScale,  dimension , '#cccccc'); 
-				drawImages(context);		
+				setMap({...map, drawObjects: imagesToDraw });			
 			}
 		}		
 
 		return () => {
 		
 		}
-	}, [map]);
+	}, [map.objects]);
+
+	useEffect(() => {
+		const canvas = canvasRef.current;	
+		const context = canvas.getContext("2d");
+		clearCanvas(context);
+		drawBg(context,  canvasScale,  dimension , '#cccccc'); 
+		drawImages(context);	
+
+	}, [map.drawObjects]);
+
+	const drawImages = (ctx: CanvasRenderingContext2D) => {
+		if(map && map.drawObjects && map.drawObjects.length > 0){			
+			map.drawObjects.forEach(i => drawImageInCanvas(ctx, i) );
+		}
+	};
+
+	const drawImageInCanvas = (ctx: CanvasRenderingContext2D, img) => {	
+		let imageX, imageY,imageWidth,imageHeight;
+		if(img.obj.otherImagesInSameSprite && img.obj.singleSprite){
+			imageX = img.obj.xPosOnSprite;
+			imageY = img.obj.yPosOnSprite;
+			imageWidth = img.visibleAreaInCanvas.x2 - img.visibleAreaInCanvas.x1;
+			imageHeight = img.visibleAreaInCanvas.y2 - img.visibleAreaInCanvas.y1;
+		}else if(!img.obj.otherImagesInSameSprite && !img.obj.singleSprite){
+			imageX = img.obj.mainImageXPosOnSprite;
+			imageY = img.obj.mainImageYPosOnSprite;
+			imageWidth = img.visibleAreaInCanvas.x2 - img.visibleAreaInCanvas.x1;
+			imageHeight = img.visibleAreaInCanvas.y2 - img.visibleAreaInCanvas.y1;
+		}
+		ctx.drawImage(
+			img.image,
+			imageX,
+			imageY,
+			imageWidth,
+			imageHeight,
+			img.visibleAreaInCanvas.x1 / canvasScale,
+			img.visibleAreaInCanvas.y1 / canvasScale,
+			imageWidth / canvasScale,
+			imageHeight/ canvasScale
+		);		
+	};
 
 	const getIntersectingRectangle = (r1, r2) => {  
 		[r1, r2] = [r1, r2].map(r => {
@@ -178,7 +198,7 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	};
 
 	const findImagesVisibleInCanvas = (imagesList) => {
-		return imagesList.map(img => findImageVisibleArea(img)).filter(img => img.visible);
+		return imagesList.filter(img => img.visible);
 	};
 
 	const clearCanvas = (context: CanvasRenderingContext2D) => {
@@ -186,38 +206,9 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 		context.fillRect(0, 0, context.canvas.width, context.canvas.height);
 	};
 
-	const drawImages = (ctx: CanvasRenderingContext2D) => {
-		if(images && images.length > 0){
-			images.forEach(i => drawImageInCanvas(ctx, i) );
-		}
-	};
+	
 
-	const drawImageInCanvas = (ctx: CanvasRenderingContext2D, img) => {	
-		
-		let imageX, imageY,imageWidth,imageHeight;
-		if(img.obj.otherImagesInSameSprite && img.obj.singleSprite){
-			imageX = img.obj.xPosOnSprite;
-			imageY = img.obj.yPosOnSprite;
-			imageWidth = img.obj.width,
-			imageHeight = img.obj.height
-		}else if(!img.obj.otherImagesInSameSprite && !img.obj.singleSprite){
-			imageX = img.obj.mainImageXPosOnSprite;
-			imageY = img.obj.mainImageYPosOnSprite;
-			imageWidth = img.obj.width,
-			imageHeight = img.obj.height
-		}
-		ctx.drawImage(
-			img.image,
-			imageX,
-			imageY,
-			imageWidth,
-			imageHeight,
-			img.xPosInCanvas / canvasScale,
-			img.yPosInCanvas / canvasScale,
-			imageWidth / canvasScale,
-			imageHeight/ canvasScale
-		);		
-	};
+
 
 	const drawBg = (ctx : CanvasRenderingContext2D, scale: number,  dimension: number , strokeStyle: string ) => {		
 		const canvasWidth = ctx.canvas.width ;
@@ -292,9 +283,9 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	};
 
 	const findImageUnderPointer = (x, y) => {
-		return images
-			.filter(img => x > img.xPosInCanvas && x < img.xPosInCanvas + img.obj.width && y > img.yPosInCanvas && y < img.yPosInCanvas + img.obj.height)
-			.sort((img1, img2) => img1.order - img2.order )[0];
+		return map.drawObjects
+			.filter(img => x > img.visibleAreaInCanvas.x1 && x < img.visibleAreaInCanvas.x2  && y > img.visibleAreaInCanvas.y1 && y < img.visibleAreaInCanvas.y2)
+			.sort((img1, img2) => img2.order - img1.order )[0];
 		
 	};
 
@@ -331,17 +322,17 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	// 	}
 	// };
 
-	const cursorOnImage = (img, x, y) => {
-		if( x > img.xPosInCanvas && x < img.xPosInCanvas + img.obj.width && y > img.yPosInCanvas && y < img.yPosInCanvas + img.obj.height){
+	const cursorOnImage = (img, x, y) => { 
+		if( x > img.visibleAreaInCanvas.x1 && x < img.visibleAreaInCanvas.x2 && y > img.visibleAreaInCanvas.y1 && y < img.visibleAreaInCanvas.y2 ){
 			return true;
 		}
 	};
 
-	const getDirection = (img, x, y) => {
-		if( x > img.xPosInCanvas &&  y < img.yPosInCanvas    &&  x < img.xPosInCanvas + img.obj.width     ) return 'UP';
-		if( x > img.xPosInCanvas &&  y > img.yPosInCanvas + img.obj.height   &&  x < img.xPosInCanvas + img.obj.width     ) return 'DOWN';
-		if( x < img.xPosInCanvas &&  y < img.yPosInCanvas + img.obj.height   &&  y > img.yPosInCanvas    ) return 'LEFT';
-		if( x > img.xPosInCanvas + img.obj.width   &&  y < img.yPosInCanvas + img.obj.height   &&  y > img.yPosInCanvas    ) return 'RIGHT';
+	const getDirection = (img, x, y) => { 
+		if( x >  img.visibleAreaInCanvas.x1  &&  y < img.visibleAreaInCanvas.y1    &&  x < img.visibleAreaInCanvas.x2    ) return 'UP';
+		if( x >  img.visibleAreaInCanvas.x1  &&  y > img.visibleAreaInCanvas.y2  &&  x < img.visibleAreaInCanvas.x2    ) return 'DOWN';
+		if( x <  img.visibleAreaInCanvas.x1  &&  y < img.visibleAreaInCanvas.y2  &&  y > img.visibleAreaInCanvas.y1   ) return 'LEFT';
+		if( x >  img.visibleAreaInCanvas.x2   &&  y < img.visibleAreaInCanvas.y2  &&  y > img.visibleAreaInCanvas.y1    ) return 'RIGHT';
 	};
 
 
@@ -358,64 +349,124 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 
 			if(isDragging){
 				if(isKeyPressed && keyCode === 17){
+						
 					if(!cursorOnImage(imageDragging, mx, my)){
 						const direction = getDirection(imageDragging, mx, my);
 						let newImage;
 						const imageUnderPointer = findImageUnderPointer(mx, my);
+						
 						if(imageUnderPointer){							
 								setImageDragging(imageUnderPointer);
 						}else{
 							switch (direction) {
-							case 'UP':
-								newImage =  {
-									...imageDragging, 
-									yPosInCanvas: imageDragging.yPosInCanvas - imageDragging.obj.height,
-									order: images.length + 1,
-									objId: images.filter(i => i.type === imageDragging.type).length + 1	
-								};							
-								setImages([...images, newImage]);
-								setImageDragging(newImage);
-							
-								break;
-							case 'DOWN':
-								newImage =  {
-									...imageDragging, 
-									yPosInCanvas: imageDragging.yPosInCanvas + imageDragging.obj.height,
-									order: images.length + 1,
-									objId: images.filter(i => i.type === imageDragging.type).length + 1	
-								};							
-								setImages([...images, newImage]);
-								setImageDragging(newImage);
-								break;
-							case 'LEFT':
-								newImage =  {
-									...imageDragging, 
-									xPosInCanvas: imageDragging.xPosInCanvas - imageDragging.obj.width,
-									order: images.length + 1,
-									objId: images.filter(i => i.type === imageDragging.type).length + 1	
-								};							
-								setImages([...images, newImage]);
-								setImageDragging(newImage);
-								break;
-							case 'RIGHT':
-								newImage =  {
-									...imageDragging, 
-									xPosInCanvas: imageDragging.xPosInCanvas + imageDragging.obj.width,
-									order: images.length + 1,
-									objId: images.filter(i => i.type === imageDragging.type).length + 1	
-								};							
-								setImages([...images, newImage]);
-								setImageDragging(newImage);
-								break;
-							default:
-								break;
-						}
+								case 'UP':
+									newImage =  {
+										...imageDragging, 
+										visibleAreaInCanvas: { 
+											...imageDragging.visibleAreaInCanvas,											
+											y1: imageDragging.visibleAreaInCanvas.y1 - imageDragging.obj.height,											
+											y2: imageDragging.visibleAreaInCanvas.y2 - imageDragging.obj.height
+										},
+										visibleArea: { 
+											...imageDragging.visibleArea,											
+											y1: imageDragging.visibleArea.y1 - imageDragging.obj.height,											
+											y2: imageDragging.visibleArea.y2 - imageDragging.obj.height							
+										},										
+										order: map.objects.length + 1,
+										objId: map.objects.filter(i => i.type === imageDragging.type).length + 1	
+									};							
+									setMap({...map, objects: [...map.objects, newImage]});
+									setImageDragging(newImage);
+									break;
+								case 'DOWN':
+									newImage =  {
+										...imageDragging, 
+										visibleAreaInCanvas: { 
+											...imageDragging.visibleAreaInCanvas,											
+											y1: imageDragging.visibleAreaInCanvas.y1 + imageDragging.obj.height,											
+											y2: imageDragging.visibleAreaInCanvas.y2 + imageDragging.obj.height
+										},
+										visibleArea: { 
+											...imageDragging.visibleArea,											
+											y1: imageDragging.visibleArea.y1 + imageDragging.obj.height,											
+											y2: imageDragging.visibleArea.y2 + imageDragging.obj.height							
+										},										
+										order: map.objects.length + 1,
+										objId: map.objects.filter(i => i.type === imageDragging.type).length + 1	
+									};							
+									setMap({...map, objects: [...map.objects, newImage]});
+									setImageDragging(newImage);
+									break;
+								case 'LEFT':
+									newImage =  {
+										...imageDragging, 
+										visibleAreaInCanvas: { 
+											...imageDragging.visibleAreaInCanvas,											
+											x1: imageDragging.visibleAreaInCanvas.x1 - imageDragging.obj.width,											
+											x2: imageDragging.visibleAreaInCanvas.x2 - imageDragging.obj.width
+										},
+										visibleArea: { 
+											...imageDragging.visibleArea,											
+											y1: imageDragging.visibleArea.x1 - imageDragging.obj.width,											
+											y2: imageDragging.visibleArea.x2 - imageDragging.obj.width							
+										},										
+										order: map.objects.length + 1,
+										objId: map.objects.filter(i => i.type === imageDragging.type).length + 1	
+									};							
+									setMap({...map, objects: [...map.objects, newImage]});
+									setImageDragging(newImage);
+									break;
+								
+								case 'RIGHT':
+									newImage =  {
+										...imageDragging, 
+										visibleAreaInCanvas: { 
+											...imageDragging.visibleAreaInCanvas,											
+											x1: imageDragging.visibleAreaInCanvas.x1 + imageDragging.obj.width,											
+											x2: imageDragging.visibleAreaInCanvas.x2 + imageDragging.obj.width
+										},
+										visibleArea: { 
+											...imageDragging.visibleArea,											
+											y1: imageDragging.visibleArea.x1 + imageDragging.obj.width,											
+											y2: imageDragging.visibleArea.x2 + imageDragging.obj.width							
+										},										
+										order: map.objects.length + 1,
+										objId: map.objects.filter(i => i.type === imageDragging.type).length + 1	
+									};							
+									setMap({...map, objects: [...map.objects, newImage]});
+									setImageDragging(newImage);
+									break;
+								default:
+									break;
+							}
 						}
 						
 					}					
 				}else{
-					setImages(images.map(img => img.order === imageDragging.order ? {...img, xPosInCanvas: img.xPosInCanvas + dx, yPosInCanvas: img.yPosInCanvas + dy } : img ));				
-
+					let movedImage; //  img.visibleAreaInCanvas.x1
+					setMap({...map, objects: map.objects.map(img => {
+					
+						if(img.order === imageDragging.order){
+							movedImage =   {
+								...img,
+								visibleAreaInCanvas: { 
+									x1: img.visibleAreaInCanvas.x1 + dx,
+									y1: img.visibleAreaInCanvas.y1 + dy,
+									x2: img.visibleAreaInCanvas.x2 + dx,
+									y2: img.visibleAreaInCanvas.y2 + dy
+								},
+								visibleArea: { 
+									x1: img.visibleArea.x1 + dx,
+									y1: img.visibleArea.y1 + dy,
+									x2: img.visibleArea.x2 + dx,
+									y2: img.visibleArea.y2 + dy
+								}
+							};
+							return movedImage;
+						}
+						return img;						
+					})});			
+					
 				}
 
 			}
