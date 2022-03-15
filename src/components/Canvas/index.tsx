@@ -19,7 +19,6 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	const [canvasPosition, setCanvasPosition] = useState(null);
 	const [dragOk, setDragOk] = useState(false);
 	const [isDragging, setIsDragging] = useState(false);
-	const [imageData, setImageData] = useState(null);
 	const [imageDragging, setImageDragging] = useState(null);
 	const [mapMoving, setMapMoving] = useState(false);
 	const [moveMap, setMoveMap] = useState(false); 
@@ -129,28 +128,32 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	};
 
 	const drawImageInCanvas = (ctx: CanvasRenderingContext2D, img) => {	
+
+
+
 		let imageX, imageY,imageWidth,imageHeight;
 		if(img.obj.otherImagesInSameSprite && img.obj.singleSprite){
 			imageX = img.obj.xPosOnSprite;
 			imageY = img.obj.yPosOnSprite;
-			imageWidth = img.visibleAreaInCanvas.x2 - img.visibleAreaInCanvas.x1;
-			imageHeight = img.visibleAreaInCanvas.y2 - img.visibleAreaInCanvas.y1;
+			imageWidth = img.obj.width;
+			imageHeight = img.obj.height;
 		}else if(!img.obj.otherImagesInSameSprite && !img.obj.singleSprite){
+			
 			imageX = img.obj.mainImageXPosOnSprite;
 			imageY = img.obj.mainImageYPosOnSprite;
-			imageWidth = img.visibleAreaInCanvas.x2 - img.visibleAreaInCanvas.x1;
-			imageHeight = img.visibleAreaInCanvas.y2 - img.visibleAreaInCanvas.y1;
+			imageWidth = img.obj.width;
+			imageHeight = img.obj.height;
 		}
 		ctx.drawImage(
 			img.image,
-			imageX,
+			imageX  ,
 			imageY,
-			imageWidth,
-			imageHeight,
-			img.visibleAreaInCanvas.x1 / canvasScale,
-			img.visibleAreaInCanvas.y1 / canvasScale,
-			imageWidth / canvasScale,
-			imageHeight/ canvasScale
+			imageWidth  ,
+			imageHeight ,
+			img.visibleAreaInCanvas.x1 ,
+			img.visibleAreaInCanvas.y1,
+			imageWidth / canvasScale ,
+			imageHeight / canvasScale
 		);		
 	};
 
@@ -177,18 +180,18 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	};
 
 	const findImageVisibleArea = (img) => {
-
+		const scale = img.scale ? img.scale : 1;
 		let x1, y1, x2, y2;
-		x1 = img.xPosInMap;
-		y1 = img.yPosInMap;
-		x2 =  x1 + img.obj.width;
-		y2 =  y1 + img.obj.height;
+		x1 = img.xPosInMap  ;
+		y1 = img.yPosInMap ;
+		x2 =  ( x1 + img.obj.width ) ;
+		y2 = ( y1 + img.obj.height ) ;
 		
 		let r1 = { x1, y1, x2, y2 };
 
 		x1 = map.canvasX;
 		y1 = map.canvasY;
-		let r2 = { x1, y1, x2: x1 + map.canvasWidth, y2: y1 + map.canvasHeight};
+		let r2 = { x1, y1, x2: x1 + map.canvasWidth  , y2: y1 + map.canvasHeight  };
 		
 		let visibleArea =  getIntersectingRectangle(r1, r2);
 		
@@ -196,13 +199,27 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 			img =  {...img, visible: false};
 		}
 
-		const visibleAreaInCanvas =  { 
-			x1: visibleArea.x1 - map.canvasX,
-			y1: visibleArea.y1 - map.canvasY,
-			x2: visibleArea.x2 - map.canvasX,
-			y2: visibleArea.y2 - map.canvasY,
+		let visibleAreaInCanvas =  { 
+			x1: visibleArea.x1 - map.canvasX  ,
+			y1: visibleArea.y1 - map.canvasY ,
+			x2: visibleArea.x2 - map.canvasX ,
+			y2: visibleArea.y2 - map.canvasY ,
 		};
-		
+
+		visibleArea = {  
+			x1: visibleArea.x1 / scale ,
+			y1: visibleArea.y1 /scale,
+			x2: visibleArea.x2 / scale,
+			y2: visibleArea.y2 / scale	
+		};
+
+		visibleAreaInCanvas =  { 
+			x1: visibleAreaInCanvas.x1 / scale  ,
+			y1: visibleAreaInCanvas.y1 / scale ,
+			x2: visibleAreaInCanvas.x2 / scale ,
+			y2: visibleAreaInCanvas.y2 / scale ,
+		};
+	
 		return {...img, visible: true, visibleArea, visibleAreaInCanvas};
 	};
 
@@ -387,7 +404,7 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 										},										
 										order: map.objects.length + 1,
 										objId: map.objects.filter(i => i.type === imageDragging.type).length + 1,										
-										yPosInMap: imageDragging.visibleAreaInCanvas.y1 - imageDragging.obj.height	+ + map.canvasY
+										yPosInMap: imageDragging.visibleAreaInCanvas.y1 - imageDragging.obj.height	+  map.canvasY
 									};							
 									setMap({...map, objects: [...map.objects, newImage]});
 									setImageDragging(newImage);
@@ -460,25 +477,25 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 						
 					}					
 				}else{
-					let movedImage; //  img.visibleAreaInCanvas.x1
+					let movedImage; 
 					setMap({...map, objects: map.objects.map(img => {
 					
 						if(img.order === imageDragging.order){
 							movedImage =   {
 								...img,
 								visibleAreaInCanvas: { 
-									x1: img.visibleAreaInCanvas.x1 + dx,
-									y1: img.visibleAreaInCanvas.y1 + dy,
-									x2: img.visibleAreaInCanvas.x2 + dx,
-									y2: img.visibleAreaInCanvas.y2 + dy
+									x1: img.visibleAreaInCanvas.x1 + dx / canvasScale,
+									y1: img.visibleAreaInCanvas.y1 + dy / canvasScale,
+									x2: img.visibleAreaInCanvas.x2 + dx / canvasScale,
+									y2: img.visibleAreaInCanvas.y2 + dy / canvasScale
 								},
 								visibleArea: { 
-									x1: img.visibleArea.x1 + dx,
-									y1: img.visibleArea.y1 + dy,
-									x2: img.visibleArea.x2 + dx,
-									y2: img.visibleArea.y2 + dy
+									x1: img.visibleArea.x1 + dx / canvasScale,
+									y1: img.visibleArea.y1 + dy / canvasScale,
+									x2: img.visibleArea.x2 + dx / canvasScale,
+									y2: img.visibleArea.y2 + dy / canvasScale
 								},
-								xPosInCanvas: img.visibleAreaInCanvas.x1 + dx,
+								xPosInCanvas: img.visibleAreaInCanvas.x1 + dx ,
 								xPosInMap:  img.visibleArea.x1 + dx,
 								yPosInCanvas: img.visibleAreaInCanvas.x1 + dy,
 								yPosInMap:  img.visibleArea.y1 + dy
@@ -533,7 +550,7 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	
 
 	useEffect(() => {
-
+	
 		canvasRef.current.addEventListener("wheel", handleWheel, {passive: false});	
 		
 		if(wheeling && isKeyPressed){	
@@ -561,9 +578,12 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 
 	}, [zoomingIn, zoomingOut]);
 
-	useEffect(() => {
-		if(imageData){
-			setImageData({...imageData, scale: canvasScale});
+	useEffect(() => {		
+		if(map && map.objects){
+			setMap({...map, objects: map.objects.map(img =>{
+					return findImageVisibleArea({...img, scale: canvasScale});					
+				})
+			});
 		}	
 		return () => {
 			
