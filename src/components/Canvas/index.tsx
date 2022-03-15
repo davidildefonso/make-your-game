@@ -155,6 +155,7 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	};
 
 	const getIntersectingRectangle = (r1, r2) => {  
+	
 		[r1, r2] = [r1, r2].map(r => {
 			return {
 			x: [r.x1, r.x2].sort((a,b) => a - b),
@@ -165,6 +166,8 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 		const noIntersect = r2.x[0] > r1.x[1] || r2.x[1] < r1.x[0] ||
 							r2.y[0] > r1.y[1] || r2.y[1] < r1.y[0];
 
+	
+
 		return noIntersect ? false : {
 			x1: Math.max(r1.x[0], r2.x[0]), 
 			y1: Math.max(r1.y[0], r2.y[0]), 
@@ -174,11 +177,14 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	};
 
 	const findImageVisibleArea = (img) => {
+
+		let x1, y1, x2, y2;
+		x1 = img.xPosInMap;
+		y1 = img.yPosInMap;
+		x2 =  x1 + img.obj.width;
+		y2 =  y1 + img.obj.height;
 		
-		let x1, y1;
-		x1 = img.visibleArea ? img.visibleArea.x1 : img.xPosInMap;
-		y1 = img.visibleArea  ? img.visibleArea.y1 : img.yPosInMap;
-		let r1 = { x1, y1, x2:  x1 + img.obj.width , y2: y1 + img.obj.height };
+		let r1 = { x1, y1, x2, y2 };
 
 		x1 = map.canvasX;
 		y1 = map.canvasY;
@@ -187,7 +193,7 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 		let visibleArea =  getIntersectingRectangle(r1, r2);
 		
 		if(!visibleArea){
-			return {...img, visible: false, visibleArea: null};
+			img =  {...img, visible: false};
 		}
 
 		const visibleAreaInCanvas =  { 
@@ -196,6 +202,7 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 			x2: visibleArea.x2 - map.canvasX,
 			y2: visibleArea.y2 - map.canvasY,
 		};
+		
 		return {...img, visible: true, visibleArea, visibleAreaInCanvas};
 	};
 
@@ -379,7 +386,8 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 											y2: imageDragging.visibleArea.y2 - imageDragging.obj.height							
 										},										
 										order: map.objects.length + 1,
-										objId: map.objects.filter(i => i.type === imageDragging.type).length + 1	
+										objId: map.objects.filter(i => i.type === imageDragging.type).length + 1,										
+										yPosInMap: imageDragging.visibleAreaInCanvas.y1 - imageDragging.obj.height	+ + map.canvasY
 									};							
 									setMap({...map, objects: [...map.objects, newImage]});
 									setImageDragging(newImage);
@@ -398,7 +406,8 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 											y2: imageDragging.visibleArea.y2 + imageDragging.obj.height							
 										},										
 										order: map.objects.length + 1,
-										objId: map.objects.filter(i => i.type === imageDragging.type).length + 1	
+										objId: map.objects.filter(i => i.type === imageDragging.type).length + 1,
+										yPosInMap: imageDragging.visibleAreaInCanvas.y1 + imageDragging.obj.height + map.canvasY	
 									};							
 									setMap({...map, objects: [...map.objects, newImage]});
 									setImageDragging(newImage);
@@ -417,7 +426,8 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 											y2: imageDragging.visibleArea.x2 - imageDragging.obj.width							
 										},										
 										order: map.objects.length + 1,
-										objId: map.objects.filter(i => i.type === imageDragging.type).length + 1	
+										objId: map.objects.filter(i => i.type === imageDragging.type).length + 1,
+										xPosInMap: imageDragging.visibleAreaInCanvas.x1 - imageDragging.obj.width + map.canvasX	
 									};							
 									setMap({...map, objects: [...map.objects, newImage]});
 									setImageDragging(newImage);
@@ -437,7 +447,8 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 											y2: imageDragging.visibleArea.x2 + imageDragging.obj.width							
 										},										
 										order: map.objects.length + 1,
-										objId: map.objects.filter(i => i.type === imageDragging.type).length + 1	
+										objId: map.objects.filter(i => i.type === imageDragging.type).length + 1,
+										xPosInMap: imageDragging.visibleAreaInCanvas.x1 + imageDragging.obj.width + map.canvasX		
 									};							
 									setMap({...map, objects: [...map.objects, newImage]});
 									setImageDragging(newImage);
@@ -466,10 +477,16 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 									y1: img.visibleArea.y1 + dy,
 									x2: img.visibleArea.x2 + dx,
 									y2: img.visibleArea.y2 + dy
-								}
+								},
+								xPosInCanvas: img.visibleAreaInCanvas.x1 + dx,
+								xPosInMap:  img.visibleArea.x1 + dx,
+								yPosInCanvas: img.visibleAreaInCanvas.x1 + dy,
+								yPosInMap:  img.visibleArea.y1 + dy
 							};
+						
 							return movedImage;
 						}
+					
 						return img;						
 					})});			
 					
