@@ -34,12 +34,14 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 		clearCanvas(context);
 		drawBg(context,  canvasScale,  dimension , '#cccccc'); 
 		setMap({
-			width: 6400,
-			height: 3600,
+			width: 64000,
+			height: 36000,
 			canvasX: 2880,
 			canvasY: 1620,
 			canvasWidth: context.canvas.width,
 			canvasHeight: context.canvas.height,
+			visibleCanvasWidth: context.canvas.width ,
+			visibleCanvasHeight: context.canvas.height  ,
 			objects: []
 		});	
 	}, []);	
@@ -77,8 +79,8 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 		const img = new Image();
 		img.src = obj.src;
 		img.onload = () => {
-			const xPosInCanvas = 	Math.floor(Math.random() * 5) * 50;
-			const yPosInCanvas = 	Math.floor(Math.random() * 5) * 50;
+			const xPosInCanvas = 	Math.floor(Math.random() * 5) * 5;
+			const yPosInCanvas = 	Math.floor(Math.random() * 5) * 5;
 			let newImage = { 
 				order: map.objects.length + 1 ,
 				type,
@@ -88,7 +90,8 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 				xPosInCanvas,
 				yPosInCanvas,
 				xPosInMap: xPosInCanvas + map.canvasX,
-				yPosInMap: yPosInCanvas + map.canvasY
+				yPosInMap: yPosInCanvas + map.canvasY,
+				scale: canvasScale ? canvasScale : 1
 			};
 
 			newImage = findImageVisibleArea(newImage);
@@ -101,7 +104,8 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	useEffect(() => {
 		if(map && map.objects && map.objects.length > 0){
 		
-			let imagesToDraw = findImagesVisibleInCanvas(map.objects);		
+			let imagesToDraw = findImagesVisibleInCanvas(map.objects);	
+				
 			if(imagesToDraw && imagesToDraw.length > 0 ){
 				setMap({...map, drawObjects: imagesToDraw });			
 			}
@@ -122,7 +126,8 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	}, [map.drawObjects]);
 
 	const drawImages = (ctx: CanvasRenderingContext2D) => {
-		if(map && map.drawObjects && map.drawObjects.length > 0){			
+		if(map && map.drawObjects && map.drawObjects.length > 0){	
+				
 			map.drawObjects.forEach(i => drawImageInCanvas(ctx, i) );
 		}
 	};
@@ -131,18 +136,29 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 
 
 
-		let imageX, imageY,imageWidth,imageHeight;
+		let imageX, imageY,imageWidth,imageHeight, offsetX, offsetY;
+		
+		if(positionInMap){
+			offsetX = positionInMap.dx >= 0 ? 0 : img.obj.width - (img.visibleAreaInCanvas.x2 - img.visibleAreaInCanvas.x1) * canvasScale;
+			offsetY = positionInMap.dy >= 0 ? 0 : img.obj.height - (img.visibleAreaInCanvas.y2 - img.visibleAreaInCanvas.y1) * canvasScale;
+		}
+
+		if(!offsetX && !offsetY){
+			offsetX = 0;
+			offsetY = 0;
+		}	
+		
+
 		if(img.obj.otherImagesInSameSprite && img.obj.singleSprite){
-			imageX = img.obj.xPosOnSprite;
-			imageY = img.obj.yPosOnSprite;
-			imageWidth = img.obj.width;
-			imageHeight = img.obj.height;
+			imageX = img.obj.xPosOnSprite +  offsetX;
+			imageY = img.obj.yPosOnSprite + offsetY;
+			imageWidth =  (img.visibleAreaInCanvas.x2 - img.visibleAreaInCanvas.x1) * canvasScale;
+			imageHeight = (img.visibleAreaInCanvas.y2 - img.visibleAreaInCanvas.y1) * canvasScale;
 		}else if(!img.obj.otherImagesInSameSprite && !img.obj.singleSprite){
-			
-			imageX = img.obj.mainImageXPosOnSprite;
-			imageY = img.obj.mainImageYPosOnSprite;
-			imageWidth = img.obj.width;
-			imageHeight = img.obj.height;
+			imageX = img.obj.mainImageXPosOnSprite +  offsetX;
+			imageY = img.obj.mainImageYPosOnSprite + offsetY ;
+			imageWidth = (img.visibleAreaInCanvas.x2 - img.visibleAreaInCanvas.x1) * canvasScale;
+			imageHeight = (img.visibleAreaInCanvas.y2 - img.visibleAreaInCanvas.y1) * canvasScale;
 		}
 		ctx.drawImage(
 			img.image,
@@ -182,6 +198,7 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	const findImageVisibleArea = (img) => {
 		const scale = img.scale ? img.scale : 1;
 		let x1, y1, x2, y2;
+	
 		x1 = img.xPosInMap  ;
 		y1 = img.yPosInMap ;
 		x2 =  ( x1 + img.obj.width ) ;
@@ -191,8 +208,8 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 
 		x1 = map.canvasX;
 		y1 = map.canvasY;
-		let r2 = { x1, y1, x2: x1 + map.canvasWidth  , y2: y1 + map.canvasHeight  };
-		
+		let r2 = { x1, y1, x2: x1 + map.visibleCanvasWidth  , y2: y1 + map.visibleCanvasHeight  };
+	
 		let visibleArea =  getIntersectingRectangle(r1, r2);
 		
 		if(!visibleArea){
@@ -205,12 +222,12 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 			x2: visibleArea.x2 - map.canvasX ,
 			y2: visibleArea.y2 - map.canvasY ,
 		};
-
+	
 		visibleArea = {  
-			x1: visibleArea.x1 / scale ,
-			y1: visibleArea.y1 /scale,
-			x2: visibleArea.x2 / scale,
-			y2: visibleArea.y2 / scale	
+			x1: visibleArea.x1  ,
+			y1: visibleArea.y1,
+			x2: visibleArea.x2 ,
+			y2: visibleArea.y2 	
 		};
 
 		visibleAreaInCanvas =  { 
@@ -384,11 +401,13 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 						const direction = getDirection(imageDragging, mx, my);
 						let newImage;
 						const imageUnderPointer = findImageUnderPointer(mx, my);
-						
+							
 						if(imageUnderPointer){							
 								setImageDragging(imageUnderPointer);
 						}else{
+							console.log(imageDragging)
 							switch (direction) {
+							
 								case 'UP':
 									newImage =  {
 										...imageDragging, 
@@ -439,8 +458,8 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 										},
 										visibleArea: { 
 											...imageDragging.visibleArea,											
-											y1: imageDragging.visibleArea.x1 - imageDragging.obj.width,											
-											y2: imageDragging.visibleArea.x2 - imageDragging.obj.width							
+											x1: imageDragging.visibleArea.x1 - imageDragging.obj.width,											
+											x2: imageDragging.visibleArea.x2 - imageDragging.obj.width							
 										},										
 										order: map.objects.length + 1,
 										objId: map.objects.filter(i => i.type === imageDragging.type).length + 1,
@@ -455,13 +474,13 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 										...imageDragging, 
 										visibleAreaInCanvas: { 
 											...imageDragging.visibleAreaInCanvas,											
-											x1: imageDragging.visibleAreaInCanvas.x1 + imageDragging.obj.width,											
-											x2: imageDragging.visibleAreaInCanvas.x2 + imageDragging.obj.width
+											x1: imageDragging.visibleAreaInCanvas.x2,											
+											x2: imageDragging.visibleAreaInCanvas.x2 + imageDragging.visibleAreaInCanvas.x2 - imageDragging.visibleAreaInCanvas.x1 
 										},
 										visibleArea: { 
 											...imageDragging.visibleArea,											
-											y1: imageDragging.visibleArea.x1 + imageDragging.obj.width,											
-											y2: imageDragging.visibleArea.x2 + imageDragging.obj.width							
+											x1: imageDragging.visibleArea.x1 + imageDragging.obj.width,											
+											x2: imageDragging.visibleArea.x2 + imageDragging.obj.width							
 										},										
 										order: map.objects.length + 1,
 										objId: map.objects.filter(i => i.type === imageDragging.type).length + 1,
@@ -490,17 +509,16 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 									y2: img.visibleAreaInCanvas.y2 + dy / canvasScale
 								},
 								visibleArea: { 
-									x1: img.visibleArea.x1 + dx / canvasScale,
-									y1: img.visibleArea.y1 + dy / canvasScale,
-									x2: img.visibleArea.x2 + dx / canvasScale,
-									y2: img.visibleArea.y2 + dy / canvasScale
+									x1: img.visibleArea.x1 + dx ,
+									y1: img.visibleArea.y1 + dy ,
+									x2: img.visibleArea.x2 + dx ,
+									y2: img.visibleArea.y2 + dy 
 								},
 								xPosInCanvas: img.visibleAreaInCanvas.x1 + dx ,
 								xPosInMap:  img.visibleArea.x1 + dx,
 								yPosInCanvas: img.visibleAreaInCanvas.x1 + dy,
 								yPosInMap:  img.visibleArea.y1 + dy
-							};
-						
+							};						
 							return movedImage;
 						}
 					
@@ -508,7 +526,6 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 					})});			
 					
 				}
-
 			}
 
 			imageDragging.startX = mx;
@@ -522,19 +539,23 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 			const my = e.clientY - canvasPosition.offsetY;
 
 			const dx = (mx - positionInMap.startX) * canvasScale;
-			const dy = (my - positionInMap.startY) * canvasScale;
+			const dy = (my - positionInMap.startY) * canvasScale;	
 
-	
-
-			if(mapMoving){
-			
-				
+			if(mapMoving){		
 				setMap({...map, canvasX: map.canvasX - dx, canvasY: map.canvasY - dy});
 			}
 
-			positionInMap.startX = mx;
-			positionInMap.startY = my;
-			
+			setPositionInMap({
+				startX: mx,
+				startY: my,
+				oldX: positionInMap.startX,
+				oldY: positionInMap.startY,
+				dx: e.movementX,
+				dy: e.movementY
+			});
+
+		//	positionInMap.startX = mx;
+		//	positionInMap.startY = my;			
 		}
 	};
 
@@ -580,10 +601,26 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 
 	useEffect(() => {		
 		if(map && map.objects){
-			setMap({...map, objects: map.objects.map(img =>{
-					return findImageVisibleArea({...img, scale: canvasScale});					
-				})
-			});
+			if(zoomingIn){
+				setMap({
+						...map,					
+						visibleCanvasWidth: map.canvasWidth / canvasScale ,
+						visibleCanvasHeight: map.canvasHeight / canvasScale  ,
+						objects: map.objects.map(img =>{
+						return findImageVisibleArea({...img, scale: canvasScale});					
+					})
+				});		
+			}else if(zoomingOut){
+				setMap({
+						...map,					
+						visibleCanvasWidth: map.canvasWidth * canvasScale ,
+						visibleCanvasHeight: map.canvasHeight * canvasScale  ,
+						objects: map.objects.map(img =>{
+						return findImageVisibleArea({...img, scale: canvasScale});					
+					})
+				});
+			}
+		
 		}	
 		return () => {
 			
