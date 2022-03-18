@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import Canvas from '../Canvas';
 import './App.css';
 import Images from '../Images';
+import { GameObject } from '../../types';
 
 const App = () => {
 	const [gameObjects, setGameObjects] = useState({
@@ -14,8 +15,9 @@ const App = () => {
 	});
 	const [lastChangedGameObject, setLastChangedGameObject] = useState({});
 	const [location, setLocation] = useState(null);
+	const [map, setMap] = useState({});
 
-	const createImage = (obj) => {
+	const createImage = (obj: GameObject) => {
 		switch (obj.type) {
 			case 'PLAYER':
 				setGameObjects({...gameObjects, players: gameObjects.players.concat({...obj, objId: gameObjects.players.length + 1})});
@@ -38,7 +40,7 @@ const App = () => {
 		}
 	};
 
-	const startGamePreview = (e) => {
+	const startGamePreview = (e: { preventDefault: () => void; }) => {
 		e.preventDefault();
 		window.history.pushState({}, "", 'play');
 		const navEvent = new PopStateEvent('popstate');
@@ -60,7 +62,16 @@ const App = () => {
 				<Images createImage ={createImage} />
 			</div>
 
-			<Canvas type="main" width={640} height={360} gameObjects={gameObjects}  setGameObjects={setGameObjects} lastChangedGameObject={lastChangedGameObject} />
+			<Canvas 
+				type="main" 
+				width={640} 
+				height={360} 
+				map={map} 
+				setMap={setMap} 
+				gameObjects={gameObjects}  
+				setGameObjects={setGameObjects} 
+				lastChangedGameObject={lastChangedGameObject} 
+			/>
 		</div>
 	);
 };

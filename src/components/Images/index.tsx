@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { FunctionComponent } from 'react';
 import Image from '../Image';
 import PlayerSprites from '../../assets/img/player.png';
 import OtherSprites from '../../assets/img/sprites.png';
 import './index.css';
+import { ImagesProps, ImagesType } from '../../types';
 
-const Images = ( { createImage }) => {
+const Images : FunctionComponent<ImagesProps> = ( { createImage }) => {
 
-	const images = [
+	const images : ImagesType[] = [
 		{
 			id:1,
 			src: PlayerSprites,

@@ -1,13 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { FunctionComponent, useEffect, useRef, useState } from 'react';
+import { CanvasProps, GameObject, MapType } from '../../types';
+import { findImagesVisibleInCanvas } from '../../utils/general';
 import  './canvas.css';
+import {  clearCanvas, cursorOnImage, drawBg, drawImages, findImageUnderPointer, findImageVisibleArea, getDirection } from './utils';
 
 
-const Canvas = (props :{type : string, width: number, height: number, gameObjects, lastChangedGameObject, setGameObjects}) => {
+const Canvas : FunctionComponent<CanvasProps> = ({map , setMap, width, height, gameObjects, lastChangedGameObject}) => {
 
 	const canvasRef = useRef(null);
 	const dimension = 20;
-
-	const [map, setMap] = useState({});
 	const [wheeling, setWheeling] = useState(false);
 	const [isKeyPressed, setIsKeyPressed] = useState(false);
 	const [keyCode, setKeyCode] = useState(null);
@@ -29,8 +30,8 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 		const BB=canvas.getBoundingClientRect();
 		setCanvasPosition({...canvasPosition, offsetX: BB.left, offsetY: BB.top});
 		const context = canvas.getContext("2d");
-		context.canvas.width = props.width;
-		context.canvas.height = props.height;
+		context.canvas.width = width;
+		context.canvas.height = height;
 		clearCanvas(context);
 		drawBg(context,  canvasScale,  dimension , '#cccccc'); 
 		setMap({
@@ -47,41 +48,106 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	}, []);	
 
 	useEffect(() => {
-		const {type, objId} =  props.lastChangedGameObject;
+		const {type, objId} =  lastChangedGameObject;
 		let obj;
 		switch (type) {
 			case 'OBJECT_NO_DAMAGE':
-				obj = props.gameObjects.noDamageObjects.find(o => o.objId === objId);
-				addImageToMap(type, objId, obj);
+				obj = gameObjects.noDamageObjects.find(o => o.objId === objId);
+				addImageToMap(type, objId, obj, map);
 				break;
 			case 'OBJECT_DAMAGE':
-				obj = props.gameObjects.damageObjects.find(o => o.objId === objId);
-				addImageToMap(type, objId, obj);
+				obj = gameObjects.damageObjects.find(o => o.objId === objId);
+				addImageToMap(type, objId, obj , map);
 				break;
 			case 'OBJECT_ASSET':
-				obj = props.gameObjects.assets.find(o => o.objId === objId);
-				addImageToMap(type, objId, obj);
+				obj = gameObjects.assets.find(o => o.objId === objId);
+				addImageToMap(type, objId, obj , map);
 				break;
 			case 'PLAYER':
-				obj = props.gameObjects.players.find(o => o.objId === objId);
-				addImageToMap(type, objId, obj);
+				obj = gameObjects.players.find(o => o.objId === objId);
+				addImageToMap(type, objId, obj , map);
 				break;
 			default:
 				break;
 		}
 		
-		return () => {
-		
-		}
-	}, [props.gameObjects]);
+	}, [gameObjects]);	
 
-	const addImageToMap = (type, objId, obj) => {		
+	useEffect(() => {
+		if(map && map.objects && map.objects.length > 0){
+		
+			const imagesToDraw = findImagesVisibleInCanvas(map.objects);	
+				
+			if(imagesToDraw && imagesToDraw.length > 0 ){
+				setMap({...map, drawObjects: imagesToDraw });			
+			}
+		}		
+	}, [map.objects]);
+
+	useEffect(() => {
+		const canvas = canvasRef.current;	
+		const context = canvas.getContext("2d");
+		clearCanvas(context);
+		drawBg(context,  canvasScale,  dimension , '#cccccc'); 
+		drawImages(context, map, positionInMap, canvasScale);	
+
+	}, [map.drawObjects]);
+
+	useEffect(() => {
+		if(map && map.canvasX && map.canvasY ){
+			setMap({...map, objects: map.objects.map(img => findImageVisibleArea(map, img)) });
+		}	
+	}, [map.canvasX, map.canvasY]);	
+
+	useEffect(() => {	
+		canvasRef.current.addEventListener("wheel", handleWheel, {passive: false});	
+		
+		if(wheeling && isKeyPressed){				
+			setZoomingIn(deltaY < 0 ? true : false);
+			setZoomingOut(deltaY > 0 ? true : false);		
+		}	
+	}, [wheeling, isKeyPressed, wheelEvent]);
+	
+	
+	useEffect(() => {	
+		if(zoomingIn){
+			setCanvasScale(canvasScale / 1.25);			
+		}else if(zoomingOut){
+			setCanvasScale(canvasScale * 1.25);	
+		}	
+	}, [zoomingIn, zoomingOut]);
+
+	useEffect(() => {		
+		if(map && map.objects){
+			if(zoomingIn){
+				setMap({
+						...map,					
+						visibleCanvasWidth: map.canvasWidth / canvasScale ,
+						visibleCanvasHeight: map.canvasHeight / canvasScale  ,
+						objects: map.objects.map(img =>{
+						return findImageVisibleArea(map, {...img, scale: canvasScale});					
+					})
+				});		
+			}else if(zoomingOut){
+				setMap({
+						...map,					
+						visibleCanvasWidth: map.canvasWidth * canvasScale ,
+						visibleCanvasHeight: map.canvasHeight * canvasScale  ,
+						objects: map.objects.map(img =>{
+						return findImageVisibleArea(map, {...img, scale: canvasScale});					
+					})
+				});
+			}		
+		}	
+	}, [canvasScale]);	
+
+	const addImageToMap = (type: string, objId: number, obj: GameObject, map: MapType) => {		
 		const img = new Image();
 		img.src = obj.src;
 		img.onload = () => {
 			const xPosInCanvas = 	Math.floor(Math.random() * 5) * 5;
 			const yPosInCanvas = 	Math.floor(Math.random() * 5) * 5;
-			let newImage = { 
+			const data = { 
 				order: map.objects.length + 1 ,
 				type,
 				objId,
@@ -92,194 +158,15 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 				xPosInMap: xPosInCanvas + map.canvasX,
 				yPosInMap: yPosInCanvas + map.canvasY,
 				scale: canvasScale ? canvasScale : 1,
-				visible: true
+				visible: true,
+				visibleAreaInCanvas: {},
+				visibleArea: {}
 			};
 
-			newImage = findImageVisibleArea(newImage);
-		
+			const newImage = findImageVisibleArea(map, data);
+
 			setMap({...map, objects: [...map.objects, newImage] });
 		};
-	};
-	
-
-	useEffect(() => {
-		if(map && map.objects && map.objects.length > 0){
-		
-			let imagesToDraw = findImagesVisibleInCanvas(map.objects);	
-				
-			if(imagesToDraw && imagesToDraw.length > 0 ){
-				setMap({...map, drawObjects: imagesToDraw });			
-			}
-		}		
-
-		return () => {
-		
-		}
-	}, [map.objects]);
-
-	useEffect(() => {
-		const canvas = canvasRef.current;	
-		const context = canvas.getContext("2d");
-		clearCanvas(context);
-		drawBg(context,  canvasScale,  dimension , '#cccccc'); 
-		drawImages(context);	
-
-	}, [map.drawObjects]);
-
-	const drawImages = (ctx: CanvasRenderingContext2D) => {
-		if(map && map.drawObjects && map.drawObjects.length > 0){	
-				
-			map.drawObjects.forEach(i => drawImageInCanvas(ctx, i) );
-		}
-	};
-
-	const drawImageInCanvas = (ctx: CanvasRenderingContext2D, img) => {	
-
-
-
-		let imageX, imageY,imageWidth,imageHeight, offsetX, offsetY;
-		
-		if(positionInMap){
-			offsetX = positionInMap.dx >= 0 ? 0 : img.obj.width - (img.visibleAreaInCanvas.x2 - img.visibleAreaInCanvas.x1) * canvasScale;
-			offsetY = positionInMap.dy >= 0 ? 0 : img.obj.height - (img.visibleAreaInCanvas.y2 - img.visibleAreaInCanvas.y1) * canvasScale;
-		}
-
-		if(!offsetX && !offsetY){
-			offsetX = 0;
-			offsetY = 0;
-		}	
-		
-
-		if(img.obj.otherImagesInSameSprite && img.obj.singleSprite){
-			imageX = img.obj.xPosOnSprite +  offsetX;
-			imageY = img.obj.yPosOnSprite + offsetY;
-			imageWidth =  (img.visibleAreaInCanvas.x2 - img.visibleAreaInCanvas.x1) * canvasScale;
-			imageHeight = (img.visibleAreaInCanvas.y2 - img.visibleAreaInCanvas.y1) * canvasScale;
-		}else if(!img.obj.otherImagesInSameSprite && !img.obj.singleSprite){
-			imageX = img.obj.mainImageXPosOnSprite +  offsetX;
-			imageY = img.obj.mainImageYPosOnSprite + offsetY ;
-			imageWidth = (img.visibleAreaInCanvas.x2 - img.visibleAreaInCanvas.x1) * canvasScale;
-			imageHeight = (img.visibleAreaInCanvas.y2 - img.visibleAreaInCanvas.y1) * canvasScale;
-		}
-		ctx.drawImage(
-			img.image,
-			imageX  ,
-			imageY,
-			imageWidth  ,
-			imageHeight ,
-			img.visibleAreaInCanvas.x1 ,
-			img.visibleAreaInCanvas.y1,
-			imageWidth / canvasScale ,
-			imageHeight / canvasScale
-		);		
-	};
-
-	const getIntersectingRectangle = (r1, r2) => {  
-	
-		[r1, r2] = [r1, r2].map(r => {
-			return {
-			x: [r.x1, r.x2].sort((a,b) => a - b),
-			y: [r.y1, r.y2].sort((a,b) => a - b)
-			};
-		});
-
-		const noIntersect = r2.x[0] > r1.x[1] || r2.x[1] < r1.x[0] ||
-							r2.y[0] > r1.y[1] || r2.y[1] < r1.y[0];
-
-	
-
-		return noIntersect ? false : {
-			x1: Math.max(r1.x[0], r2.x[0]), 
-			y1: Math.max(r1.y[0], r2.y[0]), 
-			x2: Math.min(r1.x[1], r2.x[1]),
-			y2: Math.min(r1.y[1], r2.y[1])
-		};
-	};
-
-	const findImageVisibleArea = (img) => {
-
-	//	if (!img.visible) return img;
-
-		const scale = img.scale ? img.scale : 1;
-		let x1, y1, x2, y2;
-	
-		x1 = img.xPosInMap  ;
-		y1 = img.yPosInMap ;
-		x2 =  ( x1 + img.obj.width ) ;
-		y2 = ( y1 + img.obj.height ) ;
-		
-		let r1 = { x1, y1, x2, y2 };
-
-	//	x1 = map.canvasX;
-	//	y1 = map.canvasY;
-		let r2 = { x1: map.canvasX, y1: map.canvasY, x2: map.canvasX + map.visibleCanvasWidth  , y2: map.canvasY + map.visibleCanvasHeight  };
-		
-		let visibleArea =  getIntersectingRectangle(r1, r2);
-		
-		if(!visibleArea){
-			img =  {...img, visible: false};
-		}
-
-		let visibleAreaInCanvas =  { 
-			x1: visibleArea.x1 - map.canvasX  ,
-			y1: visibleArea.y1 - map.canvasY ,
-			x2: visibleArea.x2 - map.canvasX ,
-			y2: visibleArea.y2 - map.canvasY ,
-		};
-	
-		visibleArea = {  
-			x1: visibleArea.x1  ,
-			y1: visibleArea.y1,
-			x2: visibleArea.x2 ,
-			y2: visibleArea.y2 	
-		};
-
-		visibleAreaInCanvas =  { 
-			x1: visibleAreaInCanvas.x1 / scale  ,
-			y1: visibleAreaInCanvas.y1 / scale ,
-			x2: visibleAreaInCanvas.x2 / scale ,
-			y2: visibleAreaInCanvas.y2 / scale ,
-		};
-
-		
-	
-		return {...img, visible: true, visibleArea, visibleAreaInCanvas};
-	};
-
-	const findImagesVisibleInCanvas = (imagesList) => {
-		return imagesList.filter(img => img.visible);
-	};
-
-	const clearCanvas = (context: CanvasRenderingContext2D) => {
-		context.fillStyle  = '#000';
-		context.fillRect(0, 0, context.canvas.width, context.canvas.height);
-	};
-
-	
-
-
-
-	const drawBg = (ctx : CanvasRenderingContext2D, scale: number,  dimension: number , strokeStyle: string ) => {		
-		const canvasWidth = ctx.canvas.width ;
-		const canvasHeight = ctx.canvas.height ;
-
-		ctx.fillStyle  = '#000';	
-		ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-		ctx.strokeStyle = strokeStyle;
-		let xPos, yPos;
-		for (let i = 0; i <  Math.floor(canvasWidth/ (dimension / scale)) ; ++i) {
-			xPos = Math.floor(i * (dimension / scale));
-			ctx.beginPath();
-			ctx.moveTo(xPos, 0);
-			ctx.lineTo(xPos, canvasHeight);
-			ctx.stroke();
-
-			yPos =  Math.floor(i * (dimension / scale)); 
-			ctx.beginPath();
-			ctx.moveTo(0, yPos);
-			ctx.lineTo(canvasWidth, yPos);
-			ctx.stroke();
-		}
 	};
 
 	const handleWheel = (e: { preventDefault: () => void; deltaY: number; }) => {	
@@ -302,7 +189,6 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 	};
 
 	const handleKeyUp = () => {
-
 		setWheeling(false);	
 		setIsKeyPressed(false);
 		setKeyCode(null);
@@ -317,80 +203,30 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 		const mx = e.clientX - canvasPosition.offsetX;
 		const my = e.clientY - canvasPosition.offsetY;
 
-		const imageSelected = findImageUnderPointer(mx,my);		
+		const imageSelected = findImageUnderPointer(mx,my, map);		
 		
 		if(imageSelected){
 			setDragOk(true);
 			setIsDragging(true);	
 			setImageDragging({...imageSelected, startX: mx, startY: my });
-		}else{
-		
+		}else{		
 			setMoveMap(true);
 			setMapMoving(true);
 			setPositionInMap({ startX: mx, startY: my });
-		}
-	
+		}	
 	};
 
-	const findImageUnderPointer = (x, y) => {
-		if(map && map.drawObjects){
-			return map.drawObjects
-				.filter(img => x > img.visibleAreaInCanvas.x1 && x < img.visibleAreaInCanvas.x2  && y > img.visibleAreaInCanvas.y1 && y < img.visibleAreaInCanvas.y2)
-				.sort((img1, img2) => img2.order - img1.order )[0];
-		}
-		return null;		
-		
-	};
+
 
 	const handleMouseUp = (e: { stopPropagation: () => void; }) => {
 		e.stopPropagation();
 		setDragOk(false);
 		setIsDragging(false);
 		setMoveMap(false);
-		setMapMoving(false);
-		
+		setMapMoving(false);	
 	};
 
-/**
- * 
- * DO NOT DELETE THIS FUNCTION IT HAS A COOL EFFECT!!!
-
- */
-	// const handleMouseMove = (e: { stopPropagation: () => void; clientX: number; clientY: number; }) => {
-	// 	if (dragOk){
-	// 		e.stopPropagation();
-
-	// 		const mx = e.clientX - canvasPosition.offsetX;
-	// 		const my = e.clientY - canvasPosition.offsetY;
-
-	// 		const dx = (mx - imageDragging.startX) * canvasScale;
-	// 		const dy = (my - imageDragging.startY) * canvasScale;
-
-	// 		if(isDragging){
-	// 			setImages(images.map(img => img.order === imageDragging.order ? {...img, xPosInCanvas: img.xPosInCanvas + dx, yPosInCanvas: img.yPosInCanvas + dy } : img ));				
-	// 		}
-		
-	// 		imageDragging.startX = mx;
-	// 		imageDragging.startY = my;
-
-	// 	}
-	// };
-
-	const cursorOnImage = (img, x, y) => { 
-		if( x > img.visibleAreaInCanvas.x1 && x < img.visibleAreaInCanvas.x2 && y > img.visibleAreaInCanvas.y1 && y < img.visibleAreaInCanvas.y2 ){
-			return true;
-		}
-	};
-
-	const getDirection = (img, x, y) => { 
-		if( x >  img.visibleAreaInCanvas.x1  &&  y < img.visibleAreaInCanvas.y1    &&  x < img.visibleAreaInCanvas.x2    ) return 'UP';
-		if( x >  img.visibleAreaInCanvas.x1  &&  y > img.visibleAreaInCanvas.y2  &&  x < img.visibleAreaInCanvas.x2    ) return 'DOWN';
-		if( x <  img.visibleAreaInCanvas.x1  &&  y < img.visibleAreaInCanvas.y2  &&  y > img.visibleAreaInCanvas.y1   ) return 'LEFT';
-		if( x >  img.visibleAreaInCanvas.x2   &&  y < img.visibleAreaInCanvas.y2  &&  y > img.visibleAreaInCanvas.y1    ) return 'RIGHT';
-	};
-
-
-	const handleMouseMove = (e: { stopPropagation: () => void; clientX: number; clientY: number; }) => {
+	const handleMouseMove = (e: { stopPropagation: () => void; clientX: number; clientY: number; movementX: number; movementY: number; }) => {
 		if (dragOk){
 			e.stopPropagation();
 			
@@ -407,7 +243,7 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 					if(!cursorOnImage(imageDragging, mx, my)){
 						const direction = getDirection(imageDragging, mx, my);
 						let newImage;
-						const imageUnderPointer = findImageUnderPointer(mx, my);
+						const imageUnderPointer = findImageUnderPointer(mx, my, map);
 							
 						if(imageUnderPointer){							
 								setImageDragging(imageUnderPointer);
@@ -555,91 +391,21 @@ const Canvas = (props :{type : string, width: number, height: number, gameObject
 
 			
 
-			// setPositionInMap({
-			// 	startX: mx,
-			// 	startY: my,
-			// 	oldX: positionInMap.startX,
-			// 	oldY: positionInMap.startY,
-			// 	dx: e.movementX,
-			// 	dy: e.movementY
-			// });
+			setPositionInMap({
+				startX: mx,
+				startY: my,
+				oldX: positionInMap.startX,
+				oldY: positionInMap.startY,
+				dx: e.movementX,
+				dy: e.movementY
+			});
 
-			positionInMap.startX = mx;
-			positionInMap.startY = my;		
-			positionInMap.dx = e.movementX;
-			positionInMap.dy =  e.movementY;		
+			// positionInMap.startX = mx;
+			// positionInMap.startY = my;		
+			// positionInMap.dx = e.movementX;
+			// positionInMap.dy =  e.movementY;		
 		}
 	};
-
-
-	useEffect(() => {
-		console.log(map)
-		if(map && map.canvasX && map.canvasY ){
-			setMap({...map, objects: map.objects.map(img => findImageVisibleArea(img)) });
-		}		
-		return () => {
-		
-		}
-	}, [map.canvasX, map.canvasY])
-	
-
-	useEffect(() => {
-	
-		canvasRef.current.addEventListener("wheel", handleWheel, {passive: false});	
-		
-		if(wheeling && isKeyPressed){	
-				
-			setZoomingIn(deltaY < 0 ? true : false);
-			setZoomingOut(deltaY > 0 ? true : false);		
-		}
-
-		return () => {
-			//canvasRef.current.removeEventListener("wheel", handleWheel);
-		};
-
-	}, [wheeling, isKeyPressed, wheelEvent]);
-	
-	
-	useEffect(() => {
-	
-		if(zoomingIn){
-			setCanvasScale(canvasScale / 1.25);			
-		}else if(zoomingOut){
-			setCanvasScale(canvasScale * 1.25);	
-		}
-		return () => {
-			
-		};
-
-	}, [zoomingIn, zoomingOut]);
-
-	useEffect(() => {		
-		if(map && map.objects){
-			if(zoomingIn){
-				setMap({
-						...map,					
-						visibleCanvasWidth: map.canvasWidth / canvasScale ,
-						visibleCanvasHeight: map.canvasHeight / canvasScale  ,
-						objects: map.objects.map(img =>{
-						return findImageVisibleArea({...img, scale: canvasScale});					
-					})
-				});		
-			}else if(zoomingOut){
-				setMap({
-						...map,					
-						visibleCanvasWidth: map.canvasWidth * canvasScale ,
-						visibleCanvasHeight: map.canvasHeight * canvasScale  ,
-						objects: map.objects.map(img =>{
-						return findImageVisibleArea({...img, scale: canvasScale});					
-					})
-				});
-			}
-		
-		}	
-		return () => {
-			
-		}
-	}, [canvasScale]);	
 
 	return (	
 		<canvas  
