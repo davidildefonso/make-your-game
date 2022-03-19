@@ -74,8 +74,9 @@ const Canvas : FunctionComponent<CanvasProps> = ({map , setMap, width, height, g
 	}, [gameObjects]);	
 
 	useEffect(() => {
+	
 		if(map && map.objects && map.objects.length > 0){
-		
+			
 			const imagesToDraw = findImagesVisibleInCanvas(map.objects);	
 				
 			if(imagesToDraw && imagesToDraw.length > 0 ){
@@ -85,6 +86,7 @@ const Canvas : FunctionComponent<CanvasProps> = ({map , setMap, width, height, g
 	}, [map.objects]);
 
 	useEffect(() => {
+	
 		const canvas = canvasRef.current;	
 		const context = canvas.getContext("2d");
 		clearCanvas(context);
@@ -95,7 +97,9 @@ const Canvas : FunctionComponent<CanvasProps> = ({map , setMap, width, height, g
 
 	useEffect(() => {
 		if(map && map.canvasX && map.canvasY ){
+			
 			setMap({...map, objects: map.objects.map(img => findImageVisibleArea(map, img)) });
+		
 		}	
 	}, [map.canvasX, map.canvasY]);	
 
@@ -248,16 +252,16 @@ const Canvas : FunctionComponent<CanvasProps> = ({map , setMap, width, height, g
 						if(imageUnderPointer){							
 								setImageDragging(imageUnderPointer);
 						}else{
-							
+						
 							switch (direction) {
-							
+								
 								case 'UP':
 									newImage =  {
 										...imageDragging, 
 										visibleAreaInCanvas: { 
 											...imageDragging.visibleAreaInCanvas,											
-											y1: imageDragging.visibleAreaInCanvas.y1 - imageDragging.obj.height,											
-											y2: imageDragging.visibleAreaInCanvas.y2 - imageDragging.obj.height
+											y1: imageDragging.visibleAreaInCanvas.y1 - imageDragging.obj.height / imageDragging.scale,											
+											y2: imageDragging.visibleAreaInCanvas.y2 - imageDragging.obj.height / imageDragging.scale
 										},
 										visibleArea: { 
 											...imageDragging.visibleArea,											
@@ -266,7 +270,7 @@ const Canvas : FunctionComponent<CanvasProps> = ({map , setMap, width, height, g
 										},										
 										order: map.objects.length + 1,
 										objId: map.objects.filter(i => i.type === imageDragging.type).length + 1,										
-										yPosInMap: imageDragging.visibleAreaInCanvas.y1 - imageDragging.obj.height	+  map.canvasY
+										yPosInMap: imageDragging.yPosInMap - imageDragging.obj.height 
 									};							
 									setMap({...map, objects: [...map.objects, newImage]});
 									setImageDragging(newImage);
@@ -276,8 +280,8 @@ const Canvas : FunctionComponent<CanvasProps> = ({map , setMap, width, height, g
 										...imageDragging, 
 										visibleAreaInCanvas: { 
 											...imageDragging.visibleAreaInCanvas,											
-											y1: imageDragging.visibleAreaInCanvas.y1 + imageDragging.obj.height,											
-											y2: imageDragging.visibleAreaInCanvas.y2 + imageDragging.obj.height
+											y1: imageDragging.visibleAreaInCanvas.y1 + imageDragging.obj.height / imageDragging.scale,											
+											y2: imageDragging.visibleAreaInCanvas.y2 + imageDragging.obj.height / imageDragging.scale
 										},
 										visibleArea: { 
 											...imageDragging.visibleArea,											
@@ -286,7 +290,7 @@ const Canvas : FunctionComponent<CanvasProps> = ({map , setMap, width, height, g
 										},										
 										order: map.objects.length + 1,
 										objId: map.objects.filter(i => i.type === imageDragging.type).length + 1,
-										yPosInMap: imageDragging.visibleAreaInCanvas.y1 + imageDragging.obj.height + map.canvasY	
+										yPosInMap: imageDragging.yPosInMap + imageDragging.obj.height   	
 									};							
 									setMap({...map, objects: [...map.objects, newImage]});
 									setImageDragging(newImage);
@@ -296,8 +300,8 @@ const Canvas : FunctionComponent<CanvasProps> = ({map , setMap, width, height, g
 										...imageDragging, 
 										visibleAreaInCanvas: { 
 											...imageDragging.visibleAreaInCanvas,											
-											x1: imageDragging.visibleAreaInCanvas.x1 - imageDragging.obj.width,											
-											x2: imageDragging.visibleAreaInCanvas.x2 - imageDragging.obj.width
+											x1: imageDragging.visibleAreaInCanvas.x1 - imageDragging.obj.width  / imageDragging.scale,											
+											x2: imageDragging.visibleAreaInCanvas.x2 - imageDragging.obj.width  / imageDragging.scale
 										},
 										visibleArea: { 
 											...imageDragging.visibleArea,											
@@ -306,7 +310,7 @@ const Canvas : FunctionComponent<CanvasProps> = ({map , setMap, width, height, g
 										},										
 										order: map.objects.length + 1,
 										objId: map.objects.filter(i => i.type === imageDragging.type).length + 1,
-										xPosInMap: imageDragging.visibleAreaInCanvas.x1 - imageDragging.obj.width + map.canvasX	
+										xPosInMap: imageDragging.xPosInMap - imageDragging.obj.width 
 									};							
 									setMap({...map, objects: [...map.objects, newImage]});
 									setImageDragging(newImage);
@@ -327,7 +331,7 @@ const Canvas : FunctionComponent<CanvasProps> = ({map , setMap, width, height, g
 										},										
 										order: map.objects.length + 1,
 										objId: map.objects.filter(i => i.type === imageDragging.type).length + 1,
-										xPosInMap: imageDragging.visibleAreaInCanvas.x1 + imageDragging.obj.width + map.canvasX		
+										xPosInMap: imageDragging.xPosInMap + imageDragging.obj.width 
 									};							
 									setMap({...map, objects: [...map.objects, newImage]});
 									setImageDragging(newImage);
@@ -340,8 +344,7 @@ const Canvas : FunctionComponent<CanvasProps> = ({map , setMap, width, height, g
 					}					
 				}else{
 					let movedImage; 
-					setMap({...map, objects: map.objects.map(img => {
-					
+					setMap({...map, objects: map.objects.map(img => {					
 						if(img.order === imageDragging.order){
 							movedImage =   {
 								...img,
@@ -363,8 +366,7 @@ const Canvas : FunctionComponent<CanvasProps> = ({map , setMap, width, height, g
 								yPosInMap:  img.visibleArea.y1 + dy
 							};						
 							return movedImage;
-						}
-					
+						}					
 						return img;						
 					})});			
 					

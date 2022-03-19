@@ -1,4 +1,4 @@
-import {   MapImage, MapPosition, MapType} from "../../types";
+import {   MapImage, MapPosition, MapType, Points} from "../../types";
 import { getIntersectingRectangle } from "../../utils/general";
 
 export 	const cursorOnImage = (img: MapImage, x: number, y: number) => { 
@@ -56,8 +56,8 @@ export const findImageVisibleArea = (map: MapType, img: MapImage) : MapImage => 
 	const  r2 = { 
 		x1: map.canvasX,
 		y1: map.canvasY,
-		x2: map.canvasX + map.visibleCanvasWidth,
-		y2: map.canvasY + map.visibleCanvasHeight  
+		x2: map.canvasX + map.canvasWidth * scale,
+		y2: map.canvasY + map.canvasHeight * scale  
 	};
 	
 	let visibleArea  =  getIntersectingRectangle(r1, r2);
@@ -89,7 +89,6 @@ export const findImageVisibleArea = (map: MapType, img: MapImage) : MapImage => 
 	};
 
 	
-
 	return {...img, visible: true, visibleArea, visibleAreaInCanvas};
 };
 
@@ -127,20 +126,34 @@ export 	const clearCanvas = (context: CanvasRenderingContext2D) => {
 	context.fillRect(0, 0, context.canvas.width, context.canvas.height);
 };
 
-export 	const drawImageInCanvas = (ctx: CanvasRenderingContext2D, img: MapImage, positionInMap: MapPosition, canvasScale: number) => {	
-	let imageX, imageY,imageWidth,imageHeight, offsetX, offsetY;
+export const getOffset = (coords: Points, width: number, heigth: number, imageWidth: number, imageHeight : number, canvasScale: number) => {
+	let offsetX, offsetY;
+	const {x1,x2,y1,y2} = {...coords, x1 : coords.x1 * canvasScale, x2: coords.x2 * canvasScale, y1: coords.y1 * canvasScale, y2 : coords.y2 * canvasScale};
 	
-	if(positionInMap){
-		offsetX = positionInMap.dx >= 0 ? 0 : img.obj.width - (img.visibleAreaInCanvas.x2 - img.visibleAreaInCanvas.x1) * canvasScale;
-		offsetY = positionInMap.dy >= 0 ? 0 : img.obj.height - (img.visibleAreaInCanvas.y2 - img.visibleAreaInCanvas.y1) * canvasScale;
-	}
-
-	if(!offsetX && !offsetY){
+	if( x1 <= 0 && y1 <= 0){
+		offsetX = imageWidth  - (x2 - x1);
+		offsetY = imageHeight  - (y2 -y1);
+	}else if( (x1 >= 0 && x2 <= width && y1 <= 0) || (x2 >= width && y1 <= 0) ){
+		offsetX = 0;
+		offsetY = imageHeight  - (y2 -y1);
+	}else if( ( x2 >= width && y1 >= 0 && y2 <= heigth) || (x2 >= width && y2 >= heigth) || ( y2 >= heigth && x1 >= 0 && x2 <= width) ){
 		offsetX = 0;
 		offsetY = 0;
-	}	
-	
+	}else if( (x1 <= 0 && y2 >= heigth ) || ( x1 <= 0 && y1 >= 0 && y2 <= heigth ) ){
+		offsetX = imageWidth  - (x2 - x1);
+		offsetY = 0;
+	}else{
+		offsetX = 0;
+		offsetY = 0;
+	}
+	return {offsetX, offsetY};
+};
 
+export 	const drawImageInCanvas = (ctx: CanvasRenderingContext2D, img: MapImage, positionInMap: MapPosition, canvasScale: number) => {	
+	let imageX, imageY,imageWidth,imageHeight;
+	
+	const  {offsetX, offsetY} = getOffset(img.visibleAreaInCanvas, ctx.canvas.width, ctx.canvas.height,  img.obj.width, img.obj.height, canvasScale);
+	
 	if(img.obj.otherImagesInSameSprite && img.obj.singleSprite){
 		imageX = img.obj.xPosOnSprite +  offsetX;
 		imageY = img.obj.yPosOnSprite + offsetY;
@@ -152,6 +165,7 @@ export 	const drawImageInCanvas = (ctx: CanvasRenderingContext2D, img: MapImage,
 		imageWidth = (img.visibleAreaInCanvas.x2 - img.visibleAreaInCanvas.x1) * canvasScale;
 		imageHeight = (img.visibleAreaInCanvas.y2 - img.visibleAreaInCanvas.y1) * canvasScale;
 	}
+
 	ctx.drawImage(
 		img.image,
 		imageX  ,
