@@ -3,6 +3,7 @@ import Canvas from '../Canvas';
 import './App.css';
 import Images from '../Images';
 import { GameObject } from '../../types';
+import Game from '../Game';
 
 const App = () => {
 	const [gameObjects, setGameObjects] = useState({
@@ -16,6 +17,7 @@ const App = () => {
 	const [lastChangedGameObject, setLastChangedGameObject] = useState({});
 	const [location, setLocation] = useState(null);
 	const [map, setMap] = useState({});
+	const [game, setGame] = useState(null);
 
 	const createImage = (obj: GameObject) => {
 		switch (obj.type) {
@@ -49,11 +51,10 @@ const App = () => {
 	};
 	
 	if (location === "/play") {
-		return <div>
-		play the game
-		{gameObjects.toString()}
-		</div>;
+		return <Game  game={game} />;
 	}
+
+	const saveGameData = (data) => setGame(data);
 
 	return (
 		<div className='app-container'> 
@@ -71,7 +72,10 @@ const App = () => {
 				gameObjects={gameObjects}  
 				setGameObjects={setGameObjects} 
 				lastChangedGameObject={lastChangedGameObject} 
+				saveGameData = {saveGameData}
 			/>
+
+		
 		</div>
 	);
 };

@@ -5,7 +5,7 @@ import  './canvas.css';
 import {  clearCanvas, cursorOnImage, drawBg, drawImages, findImageUnderPointer, findImageVisibleArea, getDirection } from './utils';
 
 
-const Canvas : FunctionComponent<CanvasProps> = ({map , setMap, width, height, gameObjects, lastChangedGameObject}) => {
+const Canvas : FunctionComponent<CanvasProps> = ({map , setMap, width, height, gameObjects, lastChangedGameObject, saveGameData}) => {
 
 	const canvasRef = useRef(null);
 	const dimension = 20;
@@ -91,8 +91,8 @@ const Canvas : FunctionComponent<CanvasProps> = ({map , setMap, width, height, g
 		const context = canvas.getContext("2d");
 		clearCanvas(context);
 		drawBg(context,  canvasScale,  dimension , '#cccccc'); 
-		drawImages(context, map, positionInMap, canvasScale);	
-
+		drawImages(context, map,  canvasScale);	
+		saveGameData(map);
 	}, [map.drawObjects]);
 
 	useEffect(() => {

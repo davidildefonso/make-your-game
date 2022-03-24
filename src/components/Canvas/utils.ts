@@ -92,9 +92,9 @@ export const findImageVisibleArea = (map: MapType, img: MapImage) : MapImage => 
 	return {...img, visible: true, visibleArea, visibleAreaInCanvas};
 };
 
-export const drawImages = (ctx: CanvasRenderingContext2D, map: MapType, positionInMap: MapPosition, canvasScale: number) => {
+export const drawImages = (ctx: CanvasRenderingContext2D, map: MapType, canvasScale: number) => {
 	if(map && map.drawObjects && map.drawObjects.length > 0){		
-		map.drawObjects.forEach( i => drawImageInCanvas(ctx, i, positionInMap, canvasScale ) );
+		map.drawObjects.forEach( i => drawImageInCanvas(ctx, i,  canvasScale ) );
 	}
 };
 
@@ -149,7 +149,7 @@ export const getOffset = (coords: Points, width: number, heigth: number, imageWi
 	return {offsetX, offsetY};
 };
 
-export 	const drawImageInCanvas = (ctx: CanvasRenderingContext2D, img: MapImage, positionInMap: MapPosition, canvasScale: number) => {	
+export 	const drawImageInCanvas = (ctx: CanvasRenderingContext2D, img: MapImage,  canvasScale: number) => {	
 	let imageX, imageY,imageWidth,imageHeight;
 	
 	const  {offsetX, offsetY} = getOffset(img.visibleAreaInCanvas, ctx.canvas.width, ctx.canvas.height,  img.obj.width, img.obj.height, canvasScale);
