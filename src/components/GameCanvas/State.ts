@@ -16,7 +16,7 @@ export default class State {
   }
 
   get player() {
-	console.log(this.actors)
+
     return this.actors.find(a => a.type == "PLAYER" || a.type == "player");
   }
 }
@@ -28,7 +28,7 @@ State.prototype.update = function(time, keys) {
 	
 	let actors = this.actors
 		.map(actor =>{
-		console.log(actor)
+	
 			if(actor.obj && actor.obj.update){
 				return  actor.obj.update(time, this, keys)
 			}else if(actor && actor.update){
@@ -40,11 +40,11 @@ State.prototype.update = function(time, keys) {
 
 	if (newState.status != "playing") return newState;
 
-	let player = this.player;
+	const  player = this.player;
 
-	const pos = this.player.obj.data.pos;
-	const size = {x: this.player.obj.data.obj.width, y: this.player.obj.data.obj.height}
-	console.log(this.level.touches(pos, size, "lava") )
+	const pos = player.data.pos;
+	const size = {x: player.data.obj.width, y: player.data.obj.height}
+
 	if (this.level.touches(pos, size, "lava") ) {
 		lives--	
 		return new State(this.level, actors, "lost");
@@ -59,7 +59,7 @@ State.prototype.update = function(time, keys) {
 	// }
 
 	const otherActors = actors.filter(actor => actor.type !== "player");
-console.log(otherActors)
+
 	for (let actor of otherActors) {
 		if (actor != player && overlap(actor, player)) {
 			newState = actor.collide(newState);

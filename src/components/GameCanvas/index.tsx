@@ -16,16 +16,16 @@ const GameCanvas = ({game}) => {
 		context.canvas.height = game.canvasHeight;
 		const scale = game.drawObjects[0].scale;
 
-		context.fillStyle  = '#000';	
-		context.fillRect(0, 0, canvasWidth, canvasHeight);
+	//	context.fillStyle  = '#000';	
+	//	context.fillRect(0, 0, canvasWidth, canvasHeight);
 
-		drawImages(context, game, scale);
+	//	drawImages(context, game, scale);
 
-		runGame(context, game, scale);
+		runGame(context, game, scale, canvasRef, canvas);
 		
 	}, []);	
 
-	console.log(game)
+
 	return (
 		<canvas
 			ref = {canvasRef} 

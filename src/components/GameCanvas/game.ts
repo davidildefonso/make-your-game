@@ -1,6 +1,7 @@
 import { trackKeys } from "./utils";
 import Level from './Level';
 import State from './State';
+import CanvasDisplay from './CanvasDisplay';
 
 let lives = 1
 var wobbleSpeed = 8, wobbleDist = 0.07;
@@ -23,11 +24,12 @@ function runAnimation(frameFunc) {
 function runLevel(level) {
 
 	let state = State.start(level);
+	let display = new CanvasDisplay(level);
 
 	return new Promise(resolve => {
 		runAnimation(time => {
 			state = state.update(time, arrowKeys);
-			console.log(state)
+			display.syncState(state);
 			if (state.status == "playing") {
 				return true;
 			} else {
@@ -38,8 +40,8 @@ function runLevel(level) {
 		});
 	});
 }
-
-export default async function runGame(ctx, game, scale) {
-	await runLevel(new Level(ctx, game, scale));
+//context, game, scale, canvasRef, canvas, context
+export default async function runGame(ctx, game, scale, canvasRef, canvas) {
+	await runLevel(new Level(ctx, game, scale, canvasRef, canvas));
 	//endGame("win");
 }

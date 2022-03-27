@@ -3,7 +3,7 @@ import { getIntersectingRectangle } from "../../utils/general";
 
 export const  overlap = (actor1, actor2) => {
 	if(actor1.type === "OBJECT_NO_DAMAGE"){
-		console.log(actor1, actor2)
+	
 		return actor1.obj.visibleAreaInCanvas.x2 > actor2.obj.data.pos.x &&
 				actor1.obj.visibleAreaInCanvas.x1 < actor2.obj.data.pos.x + actor2.obj.data.obj.width &&
 				actor1.obj.visibleAreaInCanvas.y2 > actor2.obj.data.pos.y &&
@@ -29,18 +29,19 @@ export const  trackKeys = (keys) =>  {
 }
 
 
-export const touching = (r1, obj) => {
-	const r2 = obj.obj.visibleAreaInCanvas;
-	const type = obj.type;
-	const name = obj.name;
-	const role = obj.role;
+export const touching = (r1, actor) => {
+	
+	const r2 = actor.data.visibleAreaInCanvas;
+	const type = actor.data.type;
+	const name = actor.data.obj.name;
+	const role = actor.data.obj.role;
 	const touches = getIntersectingRectangle(r1, r2);
 
 	if(!touches){
 		return {
 			touches: false,
 			type: null,
-			obj: null,
+			actor: null,
 			name: null,
 			role: null
 		};
@@ -49,7 +50,7 @@ export const touching = (r1, obj) => {
 	return {
 		touches: true,
 		type,
-		obj,
+		actor,
 		name,
 		role
 	};

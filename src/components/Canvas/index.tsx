@@ -92,7 +92,7 @@ const Canvas : FunctionComponent<CanvasProps> = ({map , setMap, width, height, g
 		clearCanvas(context);
 		drawBg(context,  canvasScale,  dimension , '#cccccc'); 
 		drawImages(context, map,  canvasScale);	
-		saveGameData(map);
+		saveGameData({...map, gameCanvas: {canvas, context, canvasScale, dimension}});
 	}, [map.drawObjects]);
 
 	useEffect(() => {
